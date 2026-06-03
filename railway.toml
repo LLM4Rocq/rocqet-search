@@ -6,14 +6,14 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile.api"
 
 [deploy]
-startCommand = "uvicorn api:app --host 0.0.0.0 --port $PORT"
+# The image's CMD already binds uvicorn to $PORT; no startCommand needed.
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 
-# Set these variables in the Railway service dashboard (Variables tab):
-#   QDRANT_URL      URL of a managed Qdrant instance (e.g. Qdrant Cloud)
-#   QDRANT_API_KEY  API key for that instance
-#   ROQET_EMBEDDER  hash | local | openai  (use "hash" for a zero-dependency deploy)
-#   EMBED_MODEL     sentence-transformers model when ROQET_EMBEDDER=local
-#   OPENAI_API_KEY  required when ROQET_EMBEDDER=openai
+# Dockerfile.api bakes everything the API needs:
+#   - ROQET_EMBEDDER=local + the embedding model (cached in the image)
+#   - the Qdrant index, built at image build time (on-disk, /app/data)
+# So no variables are required to run. Optional overrides (Variables tab):
+#   CORS_ORIGINS    comma-separated allowed origins (set to your Vercel URL to lock down CORS)
+#   EMBED_MODEL     swap the sentence-transformers model (must match how the index was built)

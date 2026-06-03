@@ -1,0 +1,17 @@
+# Keep the Docker build context small. These are all regenerated or irrelevant
+# to the images. Note: deploy/ is intentionally NOT ignored — the API image
+# bakes its index from deploy/declarations.enriched.jsonl.
+.git
+.venv
+node_modules
+.next
+out
+repos
+data
+*.log
+__pycache__
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.DS_Store
+files.zip

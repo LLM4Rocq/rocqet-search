@@ -5,11 +5,30 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install CPU-only torch first so pip doesn't pull the multi-GB CUDA build
+# as a transitive dependency of sentence-transformers.
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY roqet ./roqet
 COPY api.py ./api.py
+COPY deploy/declarations.enriched.jsonl ./deploy/declarations.enriched.jsonl
+
+# Serve with the local (sentence-transformers) embedder, on-disk Qdrant.
+ENV ROQET_EMBEDDER=local \
+    QDRANT_PATH=/app/data/qdrant_storage \
+    HF_HOME=/app/.cache/huggingface
+
+# Bake the semantic index into the image: this downloads the embedding model
+# (cached under HF_HOME) and builds the Qdrant store, so container start is fast
+# and needs no network or external vector DB.
+RUN python -m roqet.embedder \
+    --input deploy/declarations.enriched.jsonl \
+    --model local \
+    --reset
 
 EXPOSE 8000
-CMD ["uvicorn", "roqet.api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Railway (and most PaaS) inject $PORT; fall back to 8000 locally.
+CMD ["sh", "-c", "uvicorn roqet.api:app --host 0.0.0.0 --port ${PORT:-8000}"]
