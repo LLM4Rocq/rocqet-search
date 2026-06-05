@@ -9,7 +9,7 @@ from typing import Any
 
 
 GITHUB_BASES = {
-    "stdlib": "https://github.com/rocq-prover/rocq/blob/master/theories",
+    "stdlib": "https://github.com/rocq-prover/stdlib/blob/master/theories",
     "coq": "https://github.com/coq/coq/blob/master/theories",
     "mathcomp": "https://github.com/math-comp/math-comp/blob/master",
     "unimath": "https://github.com/UniMath/UniMath/blob/master/UniMath",

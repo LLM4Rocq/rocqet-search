@@ -18,7 +18,7 @@ class Library:
 
 
 LIBRARIES = {
-    "stdlib": Library("stdlib", "https://github.com/rocq-prover/rocq.git", "theories", "master", True),
+    "stdlib": Library("stdlib", "https://github.com/rocq-prover/stdlib.git", "theories", "master", True),
     "mathcomp": Library("mathcomp", "https://github.com/math-comp/math-comp.git", "."),
     "unimath": Library("unimath", "https://github.com/UniMath/UniMath.git", "UniMath"),
     "hott": Library("hott", "https://github.com/HoTT/Coq-HoTT.git", "theories"),

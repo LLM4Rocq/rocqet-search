@@ -311,6 +311,8 @@ All configuration is via environment variables.
 | Variable | Default | Used by | Description |
 |----------|---------|---------|-------------|
 | `ROQET_EMBEDDER` | `hash` | API | Embedder the API uses to encode queries |
+| `ROQET_RERANK` | `auto` | API | Result reranking: `auto`/`on` = dense+lexical RRF hybrid; `cross` = cross-encoder; `0` = dense only |
+| `ROQET_RERANK_CANDIDATES` | `40` | API | Candidates fetched from the index before reranking |
 | `QDRANT_URL` | _(unset)_ | both | Remote Qdrant URL; if unset, uses on-disk store |
 | `QDRANT_PATH` | `data/qdrant_storage` | both | Local on-disk Qdrant path |
 | `QDRANT_API_KEY` | _(unset)_ | both | API key for a managed Qdrant |
@@ -485,7 +487,7 @@ The fetch helper knows about:
 
 | Key | Library | Source |
 |-----|---------|--------|
-| `stdlib` | Rocq standard library | rocq-prover/rocq |
+| `stdlib` | Rocq standard library | rocq-prover/stdlib |
 | `mathcomp` | Mathematical Components | math-comp/math-comp |
 | `unimath` | UniMath | UniMath/UniMath |
 | `hott` | HoTT | HoTT/Coq-HoTT |

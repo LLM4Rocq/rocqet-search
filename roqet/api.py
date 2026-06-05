@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from roqet import rerank
 from roqet.embedder import COLLECTION_NAME, get_client, make_embedder
 
 DEFAULT_LIMIT = 10
@@ -103,14 +104,18 @@ def search(
     started = time.time()
     vector = embedder().embed([q])[0]
     try:
-        hits = query_points(vector=vector, query_filter=build_filter(lib, kind), limit=limit)
+        hits = query_points(
+            vector=vector,
+            query_filter=build_filter(lib, kind),
+            limit=rerank.candidate_pool(limit),
+        )
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Search index unavailable: {exc}") from exc
 
     results = []
-    for hit in hits:
+    for hit, score in rerank.rerank(q, hits, limit):
         payload: dict[str, Any] = hit.payload or {}
-        results.append(SearchResult(**payload, score=round(float(hit.score), 4)))
+        results.append(SearchResult(**payload, score=round(float(score), 4)))
 
     return SearchResponse(
         query=q,
