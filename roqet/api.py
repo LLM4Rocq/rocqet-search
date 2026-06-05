@@ -11,7 +11,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from roqet import rerank
-from roqet.embedder import COLLECTION_NAME, get_client, make_embedder
+from roqet.embedder import (
+    COLLECTION_NAME,
+    DENSE_VECTOR_NAME,
+    SPARSE_VECTOR_NAME,
+    get_client,
+    make_embedder,
+)
+from roqet.schema import sparse_vector
 
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 50
@@ -105,6 +112,7 @@ def search(
     vector = embedder().embed([q])[0]
     try:
         hits = query_points(
+            query=q,
             vector=vector,
             query_filter=build_filter(lib, kind),
             limit=rerank.candidate_pool(limit),
@@ -112,8 +120,12 @@ def search(
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Search index unavailable: {exc}") from exc
 
+    # Hybrid fusion already blends semantic + keyword. The optional cross-encoder
+    # reranker can still reorder the fused candidates when explicitly enabled.
+    scored = rerank.rerank(q, hits, limit)
+
     results = []
-    for hit, score in rerank.rerank(q, hits, limit):
+    for hit, score in scored:
         payload: dict[str, Any] = hit.payload or {}
         results.append(SearchResult(**payload, score=round(float(score), 4)))
 
@@ -161,22 +173,47 @@ def scroll_counts(field: str) -> dict[str, int]:
             return dict(sorted(counts.items()))
 
 
-def query_points(vector: list[float], query_filter, limit: int):
+SEARCH_MODE = os.environ.get("ROQET_SEARCH", "dense").strip().lower()
+
+
+def query_points(query: str, vector: list[float], query_filter, limit: int):
+    """Retrieve candidates.
+
+    Default: dense (semantic) retrieval over the named dense vector — measured best
+    on natural-language queries, with lexical reordering applied afterwards by
+    `rerank`. Opt-in `ROQET_SEARCH=fusion` blends dense + BM25 sparse with RRF
+    (better recall for identifier queries, but noisier on prose queries).
+    """
     qdrant = client()
-    if hasattr(qdrant, "query_points"):
+
+    if SEARCH_MODE == "fusion":
+        from qdrant_client.models import Fusion, FusionQuery, Prefetch, SparseVector
+
+        sp_idx, sp_val = sparse_vector(query)
+        prefetch_n = max(limit, 40)
         result = qdrant.query_points(
             collection_name=COLLECTION_NAME,
-            query=vector,
-            query_filter=query_filter,
+            prefetch=[
+                Prefetch(query=vector, using=DENSE_VECTOR_NAME, limit=prefetch_n, filter=query_filter),
+                Prefetch(
+                    query=SparseVector(indices=sp_idx, values=sp_val),
+                    using=SPARSE_VECTOR_NAME,
+                    limit=prefetch_n,
+                    filter=query_filter,
+                ),
+            ],
+            query=FusionQuery(fusion=Fusion.RRF),
             limit=limit,
             with_payload=True,
         )
         return result.points
 
-    return qdrant.search(
+    result = qdrant.query_points(
         collection_name=COLLECTION_NAME,
-        query_vector=vector,
+        query=vector,
+        using=DENSE_VECTOR_NAME,
         query_filter=query_filter,
         limit=limit,
         with_payload=True,
     )
+    return result.points

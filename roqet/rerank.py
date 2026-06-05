@@ -35,13 +35,19 @@ _TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9]*")
 _CAMEL_RE = re.compile(r"[A-Z]?[a-z0-9]+|[A-Z]+(?![a-z])")
 
 
-def enabled() -> bool:
-    return _MODE in {"auto", "1", "true", "yes", "on", "lexical", "hybrid", "cross"}
+_LEXICAL_MODES = {"auto", "1", "true", "yes", "on", "lexical", "hybrid"}
+_PASSTHROUGH_MODES = {"0", "false", "no", "off", "none", "dense"}
 
 
 def candidate_pool(limit: int) -> int:
-    """How many candidates to fetch from the vector index before reranking."""
-    return max(limit, RERANK_CANDIDATES) if enabled() else limit
+    """How many candidates to retrieve before reranking.
+
+    Reranking modes (lexical/cross) over-fetch a larger pool to reorder; the
+    passthrough mode fetches exactly `limit`. Measured best: dense retrieval +
+    lexical reorder of the pool (equal-weight dense+sparse fusion did worse on
+    natural-language queries).
+    """
+    return limit if _MODE in _PASSTHROUGH_MODES else max(limit, RERANK_CANDIDATES)
 
 
 def _split_identifier(tok: str) -> list[str]:
@@ -129,18 +135,30 @@ def _doc_text(payload: dict) -> str:
     return " | ".join(p for p in parts if p)
 
 
-def rerank(query: str, hits: list, limit: int) -> list[tuple]:
-    """Return a list of (hit, display_score) reordered for relevance.
+def _passthrough(hits: list, limit: int) -> list[tuple]:
+    """Trust upstream (hybrid fusion) order; normalize scores to (0, 1] for display."""
+    top = hits[:limit]
+    if not top:
+        return []
+    best = max((float(h.score) for h in top), default=1.0) or 1.0
+    return [(h, float(h.score) / best) for h in top]
 
-    Default fuses dense + lexical rankings (RRF). Falls back to dense order on any
-    failure so search never breaks.
+
+def rerank(query: str, hits: list, limit: int) -> list[tuple]:
+    """Return a list of (hit, display_score).
+
+    Default ("auto") trusts the hybrid dense+sparse fusion done in Qdrant. Optional
+    modes reorder: "cross" (cross-encoder) or "lexical"/"hybrid" (in-process RRF of
+    dense + lexical). Falls back to upstream order on any failure.
     """
-    if not enabled() or not hits:
-        return [(h, float(h.score)) for h in hits[:limit]]
+    if not hits:
+        return []
     try:
         if _MODE == "cross":
             return _cross_encoder(query, hits, limit)
-        return _rrf_fuse(hits, query, limit)
+        if _MODE in _PASSTHROUGH_MODES:
+            return _passthrough(hits, limit)
+        return _rrf_fuse(hits, query, limit)  # default: dense + lexical reorder
     except Exception as exc:  # noqa: BLE001 - never let ranking break search
-        print(f"[roqet.rerank] fell back to dense order: {exc}")
-        return [(h, float(h.score)) for h in hits[:limit]]
+        print(f"[roqet.rerank] fell back to retrieval order: {exc}")
+        return _passthrough(hits, limit)

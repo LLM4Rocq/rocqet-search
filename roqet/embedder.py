@@ -10,7 +10,16 @@ import time
 from pathlib import Path
 from typing import Protocol
 
-from roqet.schema import declaration_text, normalize_declaration, stable_id
+from roqet.schema import (
+    declaration_text,
+    normalize_declaration,
+    sparse_text,
+    sparse_vector,
+    stable_id,
+)
+
+DENSE_VECTOR_NAME = "dense"
+SPARSE_VECTOR_NAME = "text"
 
 COLLECTION_NAME = os.environ.get("ROQET_COLLECTION", "roqet_declarations")
 BATCH_SIZE = int(os.environ.get("ROQET_BATCH_SIZE", "64"))
@@ -104,7 +113,7 @@ def get_client(url: str | None = None):
 
 
 def setup_collection(client, dim: int, reset: bool = False) -> None:
-    from qdrant_client.models import Distance, VectorParams
+    from qdrant_client.models import Distance, Modifier, SparseVectorParams, VectorParams
 
     exists = any(c.name == COLLECTION_NAME for c in client.get_collections().collections)
     if exists and reset:
@@ -113,7 +122,8 @@ def setup_collection(client, dim: int, reset: bool = False) -> None:
     if not exists:
         client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
+            vectors_config={DENSE_VECTOR_NAME: VectorParams(size=dim, distance=Distance.COSINE)},
+            sparse_vectors_config={SPARSE_VECTOR_NAME: SparseVectorParams(modifier=Modifier.IDF)},
         )
 
 
@@ -144,7 +154,7 @@ def existing_keys(client) -> set[str]:
 
 
 def index_declarations(decls: list[dict], embedder: Embedder, client, resume: bool = True) -> int:
-    from qdrant_client.models import PointStruct
+    from qdrant_client.models import PointStruct, SparseVector
 
     already = existing_keys(client) if resume else set()
     pending = [d for d in decls if f"{d['library']}:{d['file_path']}:{d['line_number']}:{d['name']}" not in already]
@@ -155,14 +165,19 @@ def index_declarations(decls: list[dict], embedder: Embedder, client, resume: bo
         batch = pending[start : start + BATCH_SIZE]
         texts = [declaration_text(d) for d in batch]
         vectors = embedder.embed(texts)
-        points = [
-            PointStruct(
-                id=stable_id(decl),
-                vector=vector,
-                payload={**decl, "search_text": text},
+        points = []
+        for decl, vector, text in zip(batch, vectors, texts):
+            sp_idx, sp_val = sparse_vector(sparse_text(decl))
+            points.append(
+                PointStruct(
+                    id=stable_id(decl),
+                    vector={
+                        DENSE_VECTOR_NAME: vector,
+                        SPARSE_VECTOR_NAME: SparseVector(indices=sp_idx, values=sp_val),
+                    },
+                    payload={**decl, "search_text": text},
+                )
             )
-            for decl, vector, text in zip(batch, vectors, texts)
-        ]
         client.upsert(collection_name=COLLECTION_NAME, points=points)
         indexed += len(points)
         elapsed = max(time.time() - started, 0.001)

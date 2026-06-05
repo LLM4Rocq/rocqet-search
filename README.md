@@ -311,8 +311,9 @@ All configuration is via environment variables.
 | Variable | Default | Used by | Description |
 |----------|---------|---------|-------------|
 | `ROQET_EMBEDDER` | `hash` | API | Embedder the API uses to encode queries |
-| `ROQET_RERANK` | `auto` | API | Result reranking: `auto`/`on` = dense+lexical RRF hybrid; `cross` = cross-encoder; `0` = dense only |
-| `ROQET_RERANK_CANDIDATES` | `40` | API | Candidates fetched from the index before reranking |
+| `ROQET_SEARCH` | `dense` | API | Retrieval: `dense` (semantic, default) or `fusion` (dense+BM25 sparse RRF) |
+| `ROQET_RERANK` | `auto` | API | Reorder of retrieved candidates: `auto`/`lexical` = dense+lexical RRF (default); `cross` = cross-encoder; `off` = none |
+| `ROQET_RERANK_CANDIDATES` | `40` | API | Candidates fetched before reranking |
 | `QDRANT_URL` | _(unset)_ | both | Remote Qdrant URL; if unset, uses on-disk store |
 | `QDRANT_PATH` | `data/qdrant_storage` | both | Local on-disk Qdrant path |
 | `QDRANT_API_KEY` | _(unset)_ | both | API key for a managed Qdrant |

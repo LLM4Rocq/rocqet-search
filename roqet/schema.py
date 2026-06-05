@@ -91,3 +91,48 @@ def declaration_text(raw: dict[str, Any]) -> str:
         f"library {d['library']}",
     ]
     return " | ".join(part for part in parts if part)
+
+
+# ---------------------------------------------------------------------------
+# Sparse (BM25-style) text vectors for hybrid search.
+#
+# We tokenize the declaration text (splitting snake_case and CamelCase
+# identifiers) and hash each token to a stable sparse-vector index. Values are
+# raw term frequencies; Qdrant applies IDF weighting at query time (the sparse
+# collection is created with Modifier.IDF), giving BM25-like keyword scoring
+# without any external vocabulary or model.
+# ---------------------------------------------------------------------------
+
+_SP_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9]*")
+_SP_CAMEL_RE = re.compile(r"[A-Z]?[a-z0-9]+|[A-Z]+(?![a-z])")
+
+
+def sparse_tokens(text: str) -> list[str]:
+    out: list[str] = []
+    for raw in _SP_TOKEN_RE.findall(text or ""):
+        low = raw.lower()
+        if len(low) >= 2:
+            out.append(low)
+        for part in _SP_CAMEL_RE.findall(raw):
+            pl = part.lower()
+            if len(pl) >= 2 and pl != low:
+                out.append(pl)
+    return out
+
+
+def token_id(token: str) -> int:
+    return int.from_bytes(hashlib.sha256(token.encode("utf-8")).digest()[:4], "big") % (2**31)
+
+
+def sparse_vector(text: str) -> tuple[list[int], list[float]]:
+    """Return (indices, values) term-frequency sparse vector for `text`."""
+    from collections import Counter
+
+    counts = Counter(token_id(t) for t in sparse_tokens(text))
+    return list(counts.keys()), [float(v) for v in counts.values()]
+
+
+def sparse_text(raw: dict[str, Any]) -> str:
+    """The fields a keyword search should match against."""
+    d = normalize_declaration(raw)
+    return " ".join(p for p in (d["name"], d["type_signature"], d["statement"], d["docstring"]) if p)
