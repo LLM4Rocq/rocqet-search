@@ -2,31 +2,29 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl git \
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CPU-only torch first so pip doesn't pull the multi-GB CUDA build
-# as a transitive dependency of sentence-transformers.
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Slim deps: fastembed (ONNX) instead of torch/sentence-transformers, so the
+# image and runtime memory stay small enough for modest hosting tiers.
+COPY requirements-api.txt .
+RUN pip install --no-cache-dir -r requirements-api.txt
 
 COPY roqet ./roqet
 COPY api.py ./api.py
 COPY deploy/declarations.enriched.jsonl ./deploy/declarations.enriched.jsonl
 
-# Serve with the local (sentence-transformers) embedder, on-disk Qdrant.
-ENV ROQET_EMBEDDER=local \
+# Serve with the fastembed (ONNX) embedder, on-disk Qdrant.
+ENV ROQET_EMBEDDER=fastembed \
     QDRANT_PATH=/app/data/qdrant_storage \
-    HF_HOME=/app/.cache/huggingface
+    FASTEMBED_CACHE_PATH=/app/.cache/fastembed
 
-# Bake the semantic index into the image: this downloads the embedding model
-# (cached under HF_HOME) and builds the Qdrant store, so container start is fast
-# and needs no network or external vector DB.
+# Bake the index into the image: downloads the ONNX embedding model (cached in
+# the image) and builds the Qdrant store, so container start is fast and needs
+# no network or external vector DB.
 RUN python -m roqet.embedder \
     --input deploy/declarations.enriched.jsonl \
-    --model local \
+    --model fastembed \
     --reset
 
 EXPOSE 8000

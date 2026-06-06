@@ -310,7 +310,7 @@ All configuration is via environment variables.
 
 | Variable | Default | Used by | Description |
 |----------|---------|---------|-------------|
-| `ROQET_EMBEDDER` | `hash` | API | Embedder the API uses to encode queries |
+| `ROQET_EMBEDDER` | `hash` | API | Query embedder: `hash`, `local` (torch), `fastembed` (ONNX, low-RAM, used in hosting), or `openai` |
 | `ROQET_SEARCH` | `dense` | API | Retrieval: `dense` (semantic, default) or `fusion` (dense+BM25 sparse RRF) |
 | `ROQET_RERANK` | `auto` | API | Reorder of retrieved candidates: `auto`/`lexical` = dense+lexical RRF (default); `cross` = cross-encoder; `off` = none |
 | `ROQET_RERANK_CANDIDATES` | `40` | API | Candidates fetched before reranking |
@@ -341,8 +341,9 @@ time).
 | Model | Deps | Dim | Use case |
 |-------|------|-----|----------|
 | `hash` | none | 384 | Offline smoke tests / demo. Lexical, deterministic. |
-| `local` | `sentence-transformers` | model-dependent | Real semantic quality, runs locally. |
-| `openai` | `openai` + `OPENAI_API_KEY` | 1536/3072 | Highest quality, hosted. |
+| `local` | `sentence-transformers` (torch) | model-dependent | Real semantic quality; heavier RAM/image. |
+| `fastembed` | `fastembed` (ONNX) | 384 | Same MiniLM via ONNX — low RAM, used for hosting. |
+| `openai` | `openai` + `OPENAI_API_KEY` | 1536/3072 | Highest quality, hosted, paid. |
 
 ```bash
 # Local model

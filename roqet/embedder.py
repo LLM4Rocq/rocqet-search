@@ -25,6 +25,7 @@ COLLECTION_NAME = os.environ.get("ROQET_COLLECTION", "roqet_declarations")
 BATCH_SIZE = int(os.environ.get("ROQET_BATCH_SIZE", "64"))
 QDRANT_PATH = os.environ.get("QDRANT_PATH", "data/qdrant_storage")
 DEFAULT_LOCAL_MODEL = os.environ.get("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+FASTEMBED_MODEL = os.environ.get("FASTEMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 # Hard cap on tokens fed to the transformer. Some declarations (large records,
 # generated terms) are enormous; without truncation a transformer's O(n^2)
 # attention can try to allocate absurd buffers. 512 is plenty for a declaration.
@@ -80,6 +81,22 @@ class LocalEmbedder:
         return vecs.tolist()
 
 
+class FastEmbedEmbedder:
+    """ONNX-runtime embedder (no torch). Much lighter RAM/image than LocalEmbedder,
+    for memory-constrained hosting. Uses the same model weights as LocalEmbedder by
+    default, so embeddings are equivalent."""
+
+    def __init__(self, model_name: str = FASTEMBED_MODEL):
+        from fastembed import TextEmbedding
+
+        self.model = TextEmbedding(model_name)
+        probe = next(iter(self.model.embed(["probe"])))
+        self.dim = int(len(probe))
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return [v.tolist() for v in self.model.embed(list(texts))]
+
+
 class OpenAIEmbedder:
     def __init__(self, model_name: str = OPENAI_MODEL):
         from openai import OpenAI
@@ -96,6 +113,8 @@ class OpenAIEmbedder:
 def make_embedder(kind: str) -> Embedder:
     if kind == "hash":
         return HashEmbedder()
+    if kind == "fastembed":
+        return FastEmbedEmbedder()
     if kind == "openai":
         if not os.environ.get("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is required for --model openai")
@@ -189,7 +208,7 @@ def index_declarations(decls: list[dict], embedder: Embedder, client, resume: bo
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=Path("data/declarations.jsonl"))
-    parser.add_argument("--model", choices=["hash", "local", "openai"], default="hash")
+    parser.add_argument("--model", choices=["hash", "local", "fastembed", "openai"], default="hash")
     parser.add_argument("--qdrant-url", default=os.environ.get("QDRANT_URL") or None)
     parser.add_argument("--reset", action="store_true")
     parser.add_argument("--no-resume", action="store_true")

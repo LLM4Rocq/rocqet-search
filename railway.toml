@@ -12,8 +12,8 @@ healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 
 # Dockerfile.api bakes everything the API needs:
-#   - ROQET_EMBEDDER=local + the embedding model (cached in the image)
+#   - ROQET_EMBEDDER=fastembed + the ONNX model (cached in the image, low RAM)
 #   - the Qdrant index, built at image build time (on-disk, /app/data)
 # So no variables are required to run. Optional overrides (Variables tab):
 #   CORS_ORIGINS    comma-separated allowed origins (set to your Vercel URL to lock down CORS)
-#   EMBED_MODEL     swap the sentence-transformers model (must match how the index was built)
+#   FASTEMBED_MODEL swap the ONNX embedding model (must match how the index was built)
