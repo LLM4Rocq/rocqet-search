@@ -324,6 +324,7 @@ All configuration is via environment variables.
 | `OPENAI_EMBED_MODEL` | `text-embedding-3-small` | openai embedder | OpenAI model |
 | `OPENAI_API_KEY` | _(unset)_ | openai embedder | Required for `--model openai` |
 | `CORS_ORIGINS` | `*` | API | Comma-separated allowed origins |
+| `ROQET_RATE_LIMIT` | `60` | API | Max `/search` requests per minute per IP (0 disables) |
 
 ### Frontend
 

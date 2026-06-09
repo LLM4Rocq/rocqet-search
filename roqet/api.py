@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time
+from collections import deque
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -37,6 +39,31 @@ app.add_middleware(
 
 _embedder = None
 _client = None
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logger = logging.getLogger("roqet")
+
+# Simple in-memory per-IP sliding-window rate limit (ROQET_RATE_LIMIT=0 disables).
+# Fine for a single-instance deployment; protects the Qdrant quota from abuse.
+RATE_LIMIT = int(os.environ.get("ROQET_RATE_LIMIT", "60"))  # requests/min/IP
+RATE_WINDOW = 60.0
+_hits: dict[str, deque] = {}
+
+
+def enforce_rate_limit(request: Request) -> None:
+    if RATE_LIMIT <= 0:
+        return
+    ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    dq = _hits.setdefault(ip, deque())
+    while dq and now - dq[0] > RATE_WINDOW:
+        dq.popleft()
+    if len(dq) >= RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please slow down.")
+    dq.append(now)
+    if len(_hits) > 10000:  # bound memory: drop IPs with no recent hits
+        for k in [k for k, v in _hits.items() if not v]:
+            _hits.pop(k, None)
 
 
 class SearchResult(BaseModel):
@@ -100,11 +127,13 @@ def health() -> dict[str, str]:
 
 @app.get("/search", response_model=SearchResponse)
 def search(
+    request: Request,
     q: str = Query(..., description="Natural language search query"),
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     lib: str | None = Query(None),
     kind: str | None = Query(None),
 ):
+    enforce_rate_limit(request)
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
@@ -129,11 +158,14 @@ def search(
         payload: dict[str, Any] = hit.payload or {}
         results.append(SearchResult(**payload, score=round(float(score), 4)))
 
+    elapsed_ms = round((time.time() - started) * 1000, 1)
+    logger.info("search q=%r lib=%s kind=%s results=%d ms=%.1f", q, lib, kind, len(results), elapsed_ms)
+
     return SearchResponse(
         query=q,
         results=results,
         total=len(results),
-        elapsed_ms=round((time.time() - started) * 1000, 1),
+        elapsed_ms=elapsed_ms,
     )
 
 

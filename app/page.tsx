@@ -15,6 +15,8 @@ import {
   EXAMPLE_QUERIES,
 } from "@/lib/api";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 // ---------------------------------------------------------------------------
 // Atoms
 // ---------------------------------------------------------------------------
@@ -136,16 +138,6 @@ function SkeletonCard() {
   );
 }
 
-function FilterPill({ label, value, onClear }: { label: string; value: string; onClear: () => void }) {
-  return (
-    <div className="flex items-center gap-1.5 border border-[var(--border)] bg-[var(--surface2)] text-xs rounded-full px-3 py-1 text-[var(--muted)]">
-      <span className="text-[var(--accent)]">{label}:</span>
-      <span>{value}</span>
-      <button onClick={onClear} className="ml-0.5 hover:text-[var(--text)]"><X size={11} /></button>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
@@ -160,7 +152,6 @@ export default function Home() {
 
   const [filterLib,  setFilterLib]  = useState("");
   const [filterKind, setFilterKind] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -233,7 +224,7 @@ export default function Home() {
           Roqet
         </button>
         <a
-          href="https://github.com"
+          href="https://github.com/still-rollin/Roqet"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-3 py-1.5 transition-colors"
@@ -253,6 +244,15 @@ export default function Home() {
             <p className="text-[var(--muted)] mt-4 text-sm">
               Semantic search across Rocq/Coq libraries — describe it in plain language.
             </p>
+            {stats && (
+              <p className="text-xs text-[var(--muted2)] mt-4 font-mono">
+                {totalDecls.toLocaleString()} declarations ·{" "}
+                {Object.entries(stats.libraries)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([k, v]) => `${LIBRARY_LABELS[k] ?? k} ${v.toLocaleString()}`)
+                  .join(" · ")}
+              </p>
+            )}
           </div>
         )}
 
@@ -280,51 +280,40 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Filters + meta */}
+        {/* Filters (first-class) + meta */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors flex items-center gap-1 border border-[var(--border)] rounded-full px-3 py-1"
+          <select
+            value={filterLib}
+            onChange={e => setFilterLib(e.target.value)}
+            className="bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-strong)] text-[var(--text)] text-xs rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
+            aria-label="Filter by library"
           >
-            Filters
-            <ChevronDown size={11} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
-          </button>
-          {filterLib  && <FilterPill label="lib"  value={filterLib}  onClear={() => setFilterLib("")} />}
-          {filterKind && <FilterPill label="kind" value={filterKind} onClear={() => setFilterKind("")} />}
+            <option value="">All libraries</option>
+            {LIBRARIES.map(l => <option key={l} value={l}>{LIBRARY_LABELS[l]}</option>)}
+          </select>
+          <select
+            value={filterKind}
+            onChange={e => setFilterKind(e.target.value)}
+            className="bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-strong)] text-[var(--text)] text-xs rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
+            aria-label="Filter by kind"
+          >
+            <option value="">All kinds</option>
+            {KINDS.map(k => <option key={k} value={k}>{k}</option>)}
+          </select>
+          {(filterLib || filterKind) && (
+            <button
+              onClick={() => { setFilterLib(""); setFilterKind(""); }}
+              className="flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+            >
+              <X size={11} /> clear
+            </button>
+          )}
           {hasSearched && !loading && (
             <span className="text-xs text-[var(--muted2)] ml-auto tabular-nums">
               {results.length} results · {elapsed}ms
             </span>
           )}
         </div>
-
-        {/* Filter dropdowns */}
-        {showFilters && (
-          <div className="flex gap-4 mt-4 animate-fade-in flex-wrap">
-            <div>
-              <label className="block text-xs text-[var(--muted)] mb-1.5">Library</label>
-              <select
-                value={filterLib}
-                onChange={e => setFilterLib(e.target.value)}
-                className="bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-1.5 outline-none cursor-pointer"
-              >
-                <option value="">All libraries</option>
-                {LIBRARIES.map(l => <option key={l} value={l}>{LIBRARY_LABELS[l]}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--muted)] mb-1.5">Kind</label>
-              <select
-                value={filterKind}
-                onChange={e => setFilterKind(e.target.value)}
-                className="bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-1.5 outline-none cursor-pointer"
-              >
-                <option value="">All kinds</option>
-                {KINDS.map(k => <option key={k} value={k}>{k}</option>)}
-              </select>
-            </div>
-          </div>
-        )}
 
         {/* Error */}
         {error && (
@@ -347,6 +336,20 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
+            {/* Use from Claude Code (MCP) */}
+            <details className="mt-8 max-w-md mx-auto">
+              <summary className="text-xs text-[var(--muted)] cursor-pointer hover:text-[var(--text)] text-center list-none">
+                Use it from Claude Code / an MCP client →
+              </summary>
+              <pre className="mt-3 text-[11px] leading-relaxed bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-3 overflow-x-auto text-[var(--text)]">{`claude mcp add roqet \\
+  --env ROQET_API_URL=${API_URL} \\
+  -- roqet-mcp`}</pre>
+              <p className="text-[11px] text-[var(--muted2)] mt-2 text-center">
+                Exposes semantic search as agent tools. See the{" "}
+                <a href="https://github.com/still-rollin/Roqet#mcp-server" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">README</a>.
+              </p>
+            </details>
           </div>
         )}
 
@@ -370,7 +373,12 @@ export default function Home() {
         {hasSearched && results.length === 0 && !loading && !error && (
           <div className="text-center py-16 text-[var(--muted)]">
             <p className="text-base mb-1">No results found</p>
-            <p className="text-sm text-[var(--muted2)]">Try different wording or remove filters</p>
+            <p className="text-sm text-[var(--muted2)]">Try different wording or remove filters.</p>
+            {stats && (
+              <p className="text-xs text-[var(--muted2)] mt-3 font-mono">
+                Indexed: {Object.keys(stats.libraries).map(k => LIBRARY_LABELS[k] ?? k).join(", ")}
+              </p>
+            )}
           </div>
         )}
       </main>
