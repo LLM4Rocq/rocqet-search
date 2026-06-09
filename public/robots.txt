@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://roqet.vercel.app
+
+# Sitemaps
+Sitemap: https://roqet.vercel.app/sitemap.xml
