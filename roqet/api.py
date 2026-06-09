@@ -77,6 +77,7 @@ class SearchResult(BaseModel):
     file_path: str
     line_number: int
     github_url: str = ""
+    chapter: str = ""
     score: float
 
 
@@ -107,16 +108,14 @@ def client():
     return _client
 
 
-def build_filter(lib: str | None, kind: str | None):
+def build_filter(lib: str | None, kind: str | None, chapter: str | None = None):
     from qdrant_client.models import FieldCondition, Filter, MatchAny
 
     conditions = []
-    lib = lib if isinstance(lib, str) else None
-    kind = kind if isinstance(kind, str) else None
-    if lib:
-        conditions.append(FieldCondition(key="library", match=MatchAny(any=[x.strip() for x in lib.split(",") if x.strip()])))
-    if kind:
-        conditions.append(FieldCondition(key="kind", match=MatchAny(any=[x.strip() for x in kind.split(",") if x.strip()])))
+    for key, value in (("library", lib), ("kind", kind), ("chapter", chapter)):
+        if isinstance(value, str) and value.strip():
+            terms = [x.strip() for x in value.split(",") if x.strip()]
+            conditions.append(FieldCondition(key=key, match=MatchAny(any=terms)))
     return Filter(must=conditions) if conditions else None
 
 
@@ -132,6 +131,7 @@ def search(
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     lib: str | None = Query(None),
     kind: str | None = Query(None),
+    chapter: str | None = Query(None, description="GeoCoq chapter filter, e.g. Ch12"),
 ):
     enforce_rate_limit(request)
     if not q.strip():
@@ -143,7 +143,7 @@ def search(
         hits = query_points(
             query=q,
             vector=vector,
-            query_filter=build_filter(lib, kind),
+            query_filter=build_filter(lib, kind, chapter),
             limit=rerank.candidate_pool(limit),
         )
     except Exception as exc:

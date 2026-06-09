@@ -145,6 +145,14 @@ def setup_collection(client, dim: int, reset: bool = False) -> None:
             sparse_vectors_config={SPARSE_VECTOR_NAME: SparseVectorParams(modifier=Modifier.IDF)},
         )
 
+    # Payload indexes are REQUIRED to filter on these fields in Qdrant server/Cloud
+    # (the embedded/local store doesn't need them, but the hosted one 400s without).
+    for field in ("library", "kind", "chapter"):
+        try:
+            client.create_payload_index(COLLECTION_NAME, field_name=field, field_schema="keyword")
+        except Exception:  # noqa: BLE001 - already exists / local mode no-op
+            pass
+
 
 def load_declarations(path: Path) -> list[dict]:
     with path.open(encoding="utf-8") as fh:

@@ -12,6 +12,7 @@ import {
   LIBRARIES,
   KINDS,
   LIBRARY_LABELS,
+  GEOCOQ_CHAPTERS,
   EXAMPLE_QUERIES,
 } from "@/lib/api";
 
@@ -70,6 +71,11 @@ function ResultCard({ r, rank }: { r: SearchResult; rank: number }) {
             <KindBadge kind={r.kind} />
             <span className="font-semibold text-[var(--text)] text-[15px] break-all">{r.name}</span>
             <LibBadge lib={r.library} />
+            {r.chapter && (
+              <span className="text-[11px] px-2 py-0.5 rounded-md border border-[var(--border)] bg-[var(--surface2)] text-[var(--muted2)] font-mono">
+                {r.chapter}
+              </span>
+            )}
             <span className="text-[11px] text-[var(--muted2)] ml-auto tabular-nums">{score}%</span>
           </div>
 
@@ -152,6 +158,7 @@ export default function Home() {
 
   const [filterLib,  setFilterLib]  = useState("");
   const [filterKind, setFilterKind] = useState("");
+  const [filterChapter, setFilterChapter] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -181,6 +188,7 @@ export default function Home() {
         limit: 20,
         lib:  filterLib  || undefined,
         kind: filterKind || undefined,
+        chapter: (filterLib === "geocoq" && filterChapter) || undefined,
       });
       setResults(resp.results);
       setElapsed(resp.elapsed_ms);
@@ -191,7 +199,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [filterLib, filterKind]);
+  }, [filterLib, filterKind, filterChapter]);
 
   const handleInput = (val: string) => {
     setQuery(val);
@@ -202,13 +210,13 @@ export default function Home() {
   useEffect(() => {
     if (query.trim()) doSearch(query);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterLib, filterKind]);
+  }, [filterLib, filterKind, filterChapter]);
 
   const handleExample = (q: string) => { setQuery(q); doSearch(q); inputRef.current?.focus(); };
 
   const clearAll = () => {
     setQuery(""); setResults([]); setHasSearched(false);
-    setFilterLib(""); setFilterKind("");
+    setFilterLib(""); setFilterKind(""); setFilterChapter("");
     inputRef.current?.focus();
   };
 
@@ -300,9 +308,20 @@ export default function Home() {
             <option value="">All kinds</option>
             {KINDS.map(k => <option key={k} value={k}>{k}</option>)}
           </select>
-          {(filterLib || filterKind) && (
+          {filterLib === "geocoq" && (
+            <select
+              value={filterChapter}
+              onChange={e => setFilterChapter(e.target.value)}
+              className="bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-strong)] text-[var(--text)] text-xs rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
+              aria-label="Filter by GeoCoq chapter"
+            >
+              <option value="">All chapters</option>
+              {GEOCOQ_CHAPTERS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          {(filterLib || filterKind || filterChapter) && (
             <button
-              onClick={() => { setFilterLib(""); setFilterKind(""); }}
+              onClick={() => { setFilterLib(""); setFilterKind(""); setFilterChapter(""); }}
               className="flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors"
             >
               <X size={11} /> clear

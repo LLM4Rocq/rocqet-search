@@ -23,6 +23,7 @@ LIBRARIES = {
     "unimath": Library("unimath", "https://github.com/UniMath/UniMath.git", "UniMath"),
     "hott": Library("hott", "https://github.com/HoTT/Coq-HoTT.git", "theories"),
     "iris": Library("iris", "https://gitlab.mpi-sws.org/iris/iris.git", ".", "master"),
+    "geocoq": Library("geocoq", "https://github.com/GeoCoq/GeoCoq.git", "theories", "master"),
 }
 
 

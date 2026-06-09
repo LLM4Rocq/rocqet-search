@@ -9,6 +9,7 @@ export interface SearchResult {
   file_path: string;
   line_number: number;
   github_url: string;
+  chapter: string;
   score: number;
 }
 
@@ -29,12 +30,13 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export async function searchDeclarations(
   q: string,
-  opts: { limit?: number; lib?: string; kind?: string } = {}
+  opts: { limit?: number; lib?: string; kind?: string; chapter?: string } = {}
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({ q });
-  if (opts.limit) params.set("limit", String(opts.limit));
-  if (opts.lib)   params.set("lib", opts.lib);
-  if (opts.kind)  params.set("kind", opts.kind);
+  if (opts.limit)   params.set("limit", String(opts.limit));
+  if (opts.lib)     params.set("lib", opts.lib);
+  if (opts.kind)    params.set("kind", opts.kind);
+  if (opts.chapter) params.set("chapter", opts.chapter);
 
   const res = await fetch(`${API_BASE}/search?${params}`, {
     cache: "no-store",
@@ -49,8 +51,14 @@ export async function getStats(): Promise<StatsResponse> {
   return res.json();
 }
 
-export const LIBRARIES = ["stdlib", "mathcomp", "unimath", "hott"] as const;
+export const LIBRARIES = ["stdlib", "mathcomp", "geocoq", "unimath", "hott"] as const;
 export type Library = typeof LIBRARIES[number];
+
+// GeoCoq Tarski_dev chapters (Ch02–Ch16). Used for the geocoq-only chapter filter.
+export const GEOCOQ_CHAPTERS = [
+  "Ch02", "Ch03", "Ch04", "Ch05", "Ch06", "Ch07", "Ch08", "Ch09",
+  "Ch10", "Ch11", "Ch12", "Ch13", "Ch14", "Ch15", "Ch16",
+] as const;
 
 export const KINDS = [
   "Lemma", "Theorem", "Corollary", "Proposition",
@@ -61,6 +69,7 @@ export const KINDS = [
 export const LIBRARY_LABELS: Record<string, string> = {
   stdlib:   "Stdlib",
   mathcomp: "MathComp",
+  geocoq:   "GeoCoq",
   unimath:  "UniMath",
   hott:     "HoTT",
 };
@@ -68,10 +77,10 @@ export const LIBRARY_LABELS: Record<string, string> = {
 export const EXAMPLE_QUERIES = [
   "commutativity of addition on natural numbers",
   "list concatenation associativity",
+  "betweenness is symmetric",
+  "midpoint of a segment is unique",
   "decidable equality",
-  "transitivity of less-than relation",
   "group homomorphism preserves identity",
+  "transitivity of less-than relation",
   "functional extensionality",
-  "induction principle for lists",
-  "path induction in HoTT",
 ];

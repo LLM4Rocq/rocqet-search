@@ -254,19 +254,44 @@ def iter_declarations(file_path: Path, root: SourceRoot) -> Iterator[Declaration
         )
 
 
-def iter_v_files(root: Path) -> Iterable[Path]:
-    return sorted(path for path in root.rglob("*.v") if path.is_file())
+def iter_v_files(root: Path, include: list[str] | None = None) -> Iterable[Path]:
+    files = sorted(path for path in root.rglob("*.v") if path.is_file())
+    if not include:
+        return files
+    kept = []
+    for path in files:
+        rel = path.relative_to(root).as_posix()
+        if any(rel == p or rel.startswith(p.rstrip("/") + "/") for p in include):
+            kept.append(path)
+    return kept
 
 
-def extract(sources: list[SourceRoot], out_path: Path) -> int:
+def extract(
+    sources: list[SourceRoot],
+    out_path: Path,
+    include: list[str] | None = None,
+    kinds: set[str] | None = None,
+    append: bool = False,
+) -> int:
+    """Extract declarations to JSONL.
+
+    include : keep only files whose path (relative to the source root) is under one
+              of these prefixes, e.g. ["Main/Tarski_dev", "Axioms"].
+    kinds   : keep only these declaration kinds (case-insensitive), e.g.
+              {"Lemma", "Theorem", "Definition", "Corollary"}. None = all.
+    append  : append to out_path instead of truncating.
+    """
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    kinds_lc = {k.lower() for k in kinds} if kinds else None
     count = 0
-    with out_path.open("w", encoding="utf-8") as out:
+    with out_path.open("a" if append else "w", encoding="utf-8") as out:
         for source in sources:
             if not source.path.exists():
                 raise FileNotFoundError(f"Source root does not exist: {source.path}")
-            for file_path in iter_v_files(source.path):
+            for file_path in iter_v_files(source.path, include):
                 for declaration in iter_declarations(file_path, source):
+                    if kinds_lc is not None and declaration.kind.lower() not in kinds_lc:
+                        continue
                     out.write(json.dumps(asdict(declaration), ensure_ascii=False) + "\n")
                     count += 1
     return count
@@ -285,6 +310,20 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/declarations.jsonl",
         help="Output JSONL path. Defaults to data/declarations.jsonl",
     )
+    parser.add_argument(
+        "--include",
+        action="append",
+        help="Keep only files under these path prefixes (relative to the source root). Repeatable.",
+    )
+    parser.add_argument(
+        "--kinds",
+        help="Comma-separated declaration kinds to keep, e.g. Lemma,Theorem,Definition,Corollary",
+    )
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="Append to --out instead of overwriting (for multi-pass extraction).",
+    )
     return parser
 
 
@@ -292,7 +331,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     sources = [parse_source(value) for value in args.source]
-    count = extract(sources=sources, out_path=Path(args.out).resolve())
+    kinds = {k.strip() for k in args.kinds.split(",") if k.strip()} if args.kinds else None
+    count = extract(
+        sources=sources,
+        out_path=Path(args.out).resolve(),
+        include=args.include,
+        kinds=kinds,
+        append=args.append,
+    )
     print(f"Wrote {count} declarations to {Path(args.out).resolve()}")
     return 0
 

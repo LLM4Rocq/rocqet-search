@@ -15,7 +15,11 @@ GITHUB_BASES = {
     "unimath": "https://github.com/UniMath/UniMath/blob/master/UniMath",
     "hott": "https://github.com/HoTT/Coq-HoTT/blob/master/theories",
     "iris": "https://gitlab.mpi-sws.org/iris/iris/-/blob/master",
+    "geocoq": "https://github.com/GeoCoq/GeoCoq/blob/master/theories",
 }
+
+# Matches a GeoCoq chapter token in a file path, e.g. "Main/Tarski_dev/Ch12_parallel.v".
+_CHAPTER_RE = re.compile(r"(Ch\d{1,2})")
 
 KNOWN_SUBDIRS = {
     "stdlib": "theories",
@@ -65,6 +69,7 @@ def normalize_declaration(raw: dict[str, Any]) -> dict[str, Any]:
     github_url = str(raw.get("github_url") or "")
     if not github_url and file_path and line_number:
         github_url = make_github_url(library, file_path, line_number)
+    chapter = str(raw.get("chapter") or derive_chapter(file_path))
 
     return {
         "name": str(raw.get("name") or ""),
@@ -77,7 +82,15 @@ def normalize_declaration(raw: dict[str, Any]) -> dict[str, Any]:
         "file_path": file_path,
         "line_number": line_number,
         "github_url": github_url,
+        "chapter": chapter,
     }
+
+
+def derive_chapter(file_path: str) -> str:
+    """GeoCoq Tarski_dev files are named ChNN_*.v; surface that as a filterable
+    'chapter' (e.g. 'Ch12'). Empty for paths without a chapter token."""
+    match = _CHAPTER_RE.search(file_path or "")
+    return match.group(1) if match else ""
 
 
 def declaration_text(raw: dict[str, Any]) -> str:

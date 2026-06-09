@@ -47,6 +47,19 @@ echo "==> Extracting declarations"
 # shellcheck disable=SC2086
 "${PYTHON}" -m roqet.extract ${SOURCES} --out data/declarations.jsonl
 
+# GeoCoq gets curated treatment: only the geometry-relevant subdirs, and only
+# Lemma/Theorem/Definition/Corollary (the repo is full of Ltac/tactic noise).
+# Chapter (Ch02..Ch16) is derived from the Tarski_dev filenames automatically.
+if [[ -d repos/geocoq/theories ]]; then
+  echo "==> Extracting GeoCoq (curated)"
+  "${PYTHON}" -m roqet.extract \
+    --source repos/geocoq/theories=geocoq \
+    --include Main/Tarski_dev --include Main/Highschool --include Main/Utils \
+    --include Axioms --include Elements \
+    --kinds Lemma,Theorem,Definition,Corollary \
+    --append --out data/declarations.jsonl
+fi
+
 echo "==> Enriching and deduplicating"
 "${PYTHON}" -m roqet.enrich \
   --input data/declarations.jsonl \
