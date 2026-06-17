@@ -127,7 +127,8 @@ def get_client(url: str | None = None):
 
     api_key = os.environ.get("QDRANT_API_KEY") or None
     if url:
-        return QdrantClient(url=url, api_key=api_key)
+        timeout = int(os.environ.get("QDRANT_TIMEOUT", "120"))
+        return QdrantClient(url=url, api_key=api_key, timeout=timeout)
     return QdrantClient(path=QDRANT_PATH)
 
 
@@ -218,9 +219,36 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--input", type=Path, default=Path("data/declarations.jsonl"))
     parser.add_argument("--model", choices=["hash", "local", "fastembed", "openai"], default="hash")
     parser.add_argument("--qdrant-url", default=os.environ.get("QDRANT_URL") or None)
-    parser.add_argument("--reset", action="store_true")
-    parser.add_argument("--no-resume", action="store_true")
+    parser.add_argument("--reset", action="store_true",
+                        help="DESTRUCTIVE: delete the collection before indexing. Avoid against a "
+                             "live remote — a mid-upload failure leaves it empty. Prefer --prune.")
+    parser.add_argument("--no-resume", action="store_true",
+                        help="Re-upsert every declaration (overwrites vectors in place, no downtime) "
+                             "instead of skipping already-indexed ones.")
+    parser.add_argument("--prune", action="store_true",
+                        help="After indexing, delete points not present in --input (removes stale/"
+                             "deleted declarations). Safe: runs only after a successful full index.")
     return parser
+
+
+def prune_collection(client, keep_ids: set[int]) -> int:
+    """Delete points whose id is not in `keep_ids`. Used to drop declarations that
+    no longer exist in the input, without ever emptying the collection."""
+    from qdrant_client.models import PointIdsList
+
+    stale: list[int] = []
+    offset = None
+    while True:
+        points, offset = client.scroll(
+            collection_name=COLLECTION_NAME, limit=2000, offset=offset,
+            with_payload=False, with_vectors=False,
+        )
+        stale.extend(p.id for p in points if p.id not in keep_ids)
+        if offset is None:
+            break
+    if stale:
+        client.delete(collection_name=COLLECTION_NAME, points_selector=PointIdsList(points=stale))
+    return len(stale)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -233,6 +261,10 @@ def main(argv: list[str] | None = None) -> int:
     setup_collection(client, embedder.dim, reset=args.reset)
     declarations = load_declarations(args.input)
     indexed = index_declarations(declarations, embedder, client, resume=not args.no_resume)
+    if args.prune:
+        keep = {stable_id(d) for d in declarations}
+        removed = prune_collection(client, keep)
+        print(f"Pruned {removed} stale points.")
     info = client.get_collection(COLLECTION_NAME)
     print(f"Indexed {indexed} new declarations. Collection has {info.points_count} points.")
     return 0
