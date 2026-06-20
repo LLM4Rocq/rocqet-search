@@ -26,7 +26,7 @@ case "${1:-}" in
     ROCQET_EMBEDDER="${ROCQET_EMBEDDER:-hash}" uvicorn rocqet.api:app --reload --port "${PORT:-8000}"
     ;;
   ui)
-    npm run dev
+    (cd web && npm run dev)
     ;;
   *)
     usage

@@ -32,7 +32,7 @@ services:
 
   ui:
     build:
-      context: .
+      context: ./web
       dockerfile: Dockerfile.ui
     container_name: rocqet-ui
     restart: unless-stopped

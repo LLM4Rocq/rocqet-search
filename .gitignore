@@ -18,3 +18,4 @@ files.zip
 # and distributed via GitHub Releases, not committed. See docs/DATA.md.
 deploy/*.jsonl
 !deploy/.gitkeep
+*.egg-info/
