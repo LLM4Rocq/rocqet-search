@@ -20,9 +20,9 @@ from __future__ import annotations
 import os
 import re
 
-RERANK_CANDIDATES = int(os.environ.get("ROQET_RERANK_CANDIDATES", "40"))
-_MODE = os.environ.get("ROQET_RERANK", "auto").strip().lower()
-RRF_K = int(os.environ.get("ROQET_RRF_K", "60"))
+RERANK_CANDIDATES = int(os.environ.get("ROCQET_RERANK_CANDIDATES", "40"))
+_MODE = os.environ.get("ROCQET_RERANK", "auto").strip().lower()
+RRF_K = int(os.environ.get("ROCQET_RRF_K", "60"))
 
 # Common English filler that carries no retrieval signal for these queries.
 _STOP = {
@@ -160,5 +160,5 @@ def rerank(query: str, hits: list, limit: int) -> list[tuple]:
             return _passthrough(hits, limit)
         return _rrf_fuse(hits, query, limit)  # default: dense + lexical reorder
     except Exception as exc:  # noqa: BLE001 - never let ranking break search
-        print(f"[roqet.rerank] fell back to retrieval order: {exc}")
+        print(f"[rocqet.rerank] fell back to retrieval order: {exc}")
         return _passthrough(hits, limit)

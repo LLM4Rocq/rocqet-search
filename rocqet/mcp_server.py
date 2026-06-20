@@ -1,18 +1,18 @@
-"""Roqet MCP server.
+"""Rocqet MCP server.
 
-Exposes Roqet's semantic search over Rocq/Coq libraries as MCP tools, so an LLM
+Exposes Rocqet's semantic search over Rocq/Coq libraries as MCP tools, so an LLM
 agent (Claude, etc.) can discover lemmas/definitions by *meaning* — the semantic
 layer the Rocq MCP ecosystem otherwise lacks. It complements proof-loop servers
 like rocq-mcp (which wrap `coqc`'s exact/keyword `Search`).
 
-This is a thin client: it calls a running Roqet HTTP API (local or hosted). Point
-it at the API with the ROQET_API_URL environment variable.
+This is a thin client: it calls a running Rocqet HTTP API (local or hosted). Point
+it at the API with the ROCQET_API_URL environment variable.
 
-    ROQET_API_URL=https://your-roqet.up.railway.app roqet-mcp
+    ROCQET_API_URL=https://your-rocqet.up.railway.app rocqet-mcp
 
 Run locally (stdio transport, for Claude Desktop / Claude Code):
 
-    roqet-mcp
+    rocqet-mcp
 """
 
 from __future__ import annotations
@@ -22,10 +22,10 @@ import os
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-API_BASE = os.environ.get("ROQET_API_URL", "http://localhost:8000").rstrip("/")
-TIMEOUT = float(os.environ.get("ROQET_MCP_TIMEOUT", "30"))
+API_BASE = os.environ.get("ROCQET_API_URL", "http://localhost:8000").rstrip("/")
+TIMEOUT = float(os.environ.get("ROCQET_MCP_TIMEOUT", "30"))
 
-mcp = FastMCP("roqet")
+mcp = FastMCP("rocqet")
 
 
 def _get(path: str, params: dict | None = None) -> dict:
@@ -49,7 +49,7 @@ def _format_result(r: dict) -> str:
 
 
 @mcp.tool()
-def roqet_search(query: str, lib: str = "", kind: str = "", limit: int = 10) -> str:
+def rocqet_search(query: str, lib: str = "", kind: str = "", limit: int = 10) -> str:
     """Semantically search Rocq/Coq library declarations by meaning.
 
     Use this to find a lemma, theorem, or definition when you can describe what it
@@ -76,8 +76,8 @@ def roqet_search(query: str, lib: str = "", kind: str = "", limit: int = 10) -> 
         data = _get("/search", params)
     except httpx.HTTPError as exc:
         return (
-            f"Could not reach the Roqet API at {API_BASE} ({exc}). "
-            "Is it running? Set ROQET_API_URL to the correct base URL."
+            f"Could not reach the Rocqet API at {API_BASE} ({exc}). "
+            "Is it running? Set ROCQET_API_URL to the correct base URL."
         )
 
     results = data.get("results", [])
@@ -88,8 +88,8 @@ def roqet_search(query: str, lib: str = "", kind: str = "", limit: int = 10) -> 
 
 
 @mcp.tool()
-def roqet_stats() -> str:
-    """Report what the Roqet index currently contains.
+def rocqet_stats() -> str:
+    """Report what the Rocqet index currently contains.
 
     Returns the total number of indexed declarations and the per-library and
     per-kind breakdown — useful for knowing what corpus is searchable before querying.
@@ -97,11 +97,11 @@ def roqet_stats() -> str:
     try:
         data = _get("/stats")
     except httpx.HTTPError as exc:
-        return f"Could not reach the Roqet API at {API_BASE} ({exc}). Set ROQET_API_URL."
+        return f"Could not reach the Rocqet API at {API_BASE} ({exc}). Set ROCQET_API_URL."
     libs = ", ".join(f"{k}: {v}" for k, v in sorted(data.get("libraries", {}).items()))
     kinds = ", ".join(f"{k}: {v}" for k, v in sorted(data.get("kinds", {}).items()))
     return (
-        f"Roqet index ({API_BASE}): {data.get('total_points', 0)} declarations\n"
+        f"Rocqet index ({API_BASE}): {data.get('total_points', 0)} declarations\n"
         f"Libraries: {libs or '(none)'}\n"
         f"Kinds: {kinds or '(none)'}"
     )

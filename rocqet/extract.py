@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from roqet.schema import make_github_url
+from rocqet.schema import make_github_url
 
 
 DECLARATION_KINDS = (

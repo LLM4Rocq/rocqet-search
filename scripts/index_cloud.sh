@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# One-time: build the Roqet index into a managed (remote) Qdrant cluster, e.g.
+# One-time: build the Rocqet index into a managed (remote) Qdrant cluster, e.g.
 # Qdrant Cloud's free tier. The hosted API then connects to that cluster instead
 # of holding the vector DB in-process, keeping its memory small.
 #
@@ -40,7 +40,7 @@ fi
 
 echo "==> Indexing deploy snapshot into ${QDRANT_URL} (fastembed, non-destructive upsert + prune)"
 # shellcheck disable=SC2086
-"${PYTHON}" -m roqet.embedder \
+"${PYTHON}" -m rocqet.embedder \
   --input deploy/declarations.enriched.jsonl \
   --model fastembed \
   --qdrant-url "${QDRANT_URL}" \

@@ -11,7 +11,7 @@ Leakage-free because the proof body is NOT in the search index — the premises 
 lemma with its own indexed text.
 
 Usage:
-    python -m roqet.mine_eval \
+    python -m rocqet.mine_eval \
         --enriched data/declarations.enriched.jsonl \
         --source repos/stdlib_full/theories=stdlib \
         --source repos/mathcomp=mathcomp \
@@ -26,7 +26,7 @@ import json
 import re
 from pathlib import Path
 
-from roqet.extract import (
+from rocqet.extract import (
     DECLARATION_RE,
     extract_type,
     iter_statements,
@@ -34,7 +34,7 @@ from roqet.extract import (
     parse_source,
     strip_comments_for_match,
 )
-from roqet.schema import compact_ws
+from rocqet.schema import compact_ws
 
 # Kinds that carry a proof we can mine premises from.
 PROOF_KINDS = {"Lemma", "Theorem", "Corollary", "Remark", "Fact", "Proposition"}
@@ -128,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--enriched", type=Path, default=Path("data/declarations.enriched.jsonl"),
                         help="Indexed corpus, used to keep only premises that are searchable.")
-    parser.add_argument("--source", action="append", required=True, help="PATH=library, like roqet.extract")
+    parser.add_argument("--source", action="append", required=True, help="PATH=library, like rocqet.extract")
     parser.add_argument("--out", type=Path, default=Path("data/eval/premise_selection.jsonl"))
     parser.add_argument("--min-premises", type=int, default=1)
     parser.add_argument("--max-premises", type=int, default=15,

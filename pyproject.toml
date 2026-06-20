@@ -1,5 +1,5 @@
 [project]
-name = "roqet"
+name = "rocqet"
 version = "0.1.0"
 description = "Semantic search for Rocq/Coq mathematical libraries"
 readme = "README.md"
@@ -26,16 +26,16 @@ mcp = ["mcp>=1.2", "httpx>=0.27"]
 dev = ["ruff>=0.4", "pytest>=8", "httpx>=0.27"]
 
 [project.scripts]
-roqet-extract = "roqet.extract:main"
-roqet-fetch = "roqet.fetch:main"
-roqet-enrich = "roqet.enrich:main"
-roqet-index = "roqet.embedder:main"
-roqet-validate = "roqet.validate:main"
-roqet-describe = "roqet.describe:main"
-roqet-mcp = "roqet.mcp_server:main"
+rocqet-extract = "rocqet.extract:main"
+rocqet-fetch = "rocqet.fetch:main"
+rocqet-enrich = "rocqet.enrich:main"
+rocqet-index = "rocqet.embedder:main"
+rocqet-validate = "rocqet.validate:main"
+rocqet-describe = "rocqet.describe:main"
+rocqet-mcp = "rocqet.mcp_server:main"
 
 [tool.setuptools.packages.find]
-include = ["roqet*"]
+include = ["rocqet*"]
 
 [tool.ruff]
 line-length = 100

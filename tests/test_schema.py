@@ -1,8 +1,8 @@
 import unittest
 
-from roqet.embedder import HashEmbedder
-from roqet.enrich import enrich_declarations
-from roqet.schema import normalize_declaration
+from rocqet.embedder import HashEmbedder
+from rocqet.enrich import enrich_declarations
+from rocqet.schema import normalize_declaration
 
 
 class SchemaTests(unittest.TestCase):

@@ -1,10 +1,10 @@
 # Search engineering
 
-How Roqet actually finds declarations: what gets indexed, how a query is served,
+How Rocqet actually finds declarations: what gets indexed, how a query is served,
 the ranking choices, and the **measured** retrieval quality — including the
 approaches that were tried and rejected.
 
-> TL;DR — Roqet retrieves with a dense semantic vector (MiniLM, 384-d, cosine over
+> TL;DR — Rocqet retrieves with a dense semantic vector (MiniLM, 384-d, cosine over
 > Qdrant), then reorders the top candidates with a dependency-free lexical
 > Reciprocal-Rank-Fusion pass. A BM25 sparse vector is also indexed and a full
 > dense+sparse fusion mode exists, but **equal-weight fusion measured worse** on
@@ -35,7 +35,7 @@ default and lets a lexical pass break ties.
 ## 2. What gets embedded
 
 A declaration is flattened to a single string by
-[`declaration_text`](roqet/schema.py) — this is the text the **dense** model sees:
+[`declaration_text`](rocqet/schema.py) — this is the text the **dense** model sees:
 
 ```
 {kind} {name} | {type_signature} | {docstring} | {statement} | module {module_path} | library {library}
@@ -44,7 +44,7 @@ A declaration is flattened to a single string by
 e.g. `Lemma addnC | commutative addn | Addition is commutative. | Lemma addnC : commutative addn. | module ssreflect.ssrnat | library mathcomp`
 
 The **sparse** (keyword) side uses a tighter field set —
-[`sparse_text`](roqet/schema.py) = `name + type_signature + statement + docstring`
+[`sparse_text`](rocqet/schema.py) = `name + type_signature + statement + docstring`
 (no module/library noise).
 
 > **Known weakness:** many records have an *auto-generated* docstring that just
@@ -56,7 +56,7 @@ The **sparse** (keyword) side uses a tighter field set —
 
 ## 3. Indexing
 
-[`roqet.embedder`](roqet/embedder.py) writes each declaration into Qdrant as one
+[`rocqet.embedder`](rocqet/embedder.py) writes each declaration into Qdrant as one
 point with **named vectors**:
 
 | Vector | Name | How it's built | Distance |
@@ -64,7 +64,7 @@ point with **named vectors**:
 | Dense | `dense` | embedder model over `declaration_text` | Cosine |
 | Sparse | `text` | BM25-style term frequencies over `sparse_text` | Dot, **IDF-weighted** |
 
-**Sparse construction** ([`sparse_vector`](roqet/schema.py)):
+**Sparse construction** ([`sparse_vector`](rocqet/schema.py)):
 1. Tokenize: alphanumeric tokens, plus snake_case/CamelCase splits of identifiers
    (`addnC → addn, c`), lowercased, length ≥ 2.
 2. Hash each token → a stable 32-bit index (`sha256(token)[:4] % 2³¹`). No
@@ -74,7 +74,7 @@ point with **named vectors**:
    real BM25-like scoring with zero external state.
 
 Point `id` is a deterministic hash of `library:file:line:name`
-([`stable_id`](roqet/schema.py)), so re-indexing updates in place instead of
+([`stable_id`](rocqet/schema.py)), so re-indexing updates in place instead of
 duplicating.
 
 ### Embedders (dense)
@@ -95,18 +95,18 @@ Production runs `fastembed` for memory reasons (see [DEPLOY.md](DEPLOY.md)).
 
 ## 4. Query-time retrieval
 
-[`/search`](roqet/api.py) → `query_points()`:
+[`/search`](rocqet/api.py) → `query_points()`:
 
 1. Embed the query string with the active embedder.
-2. **Retrieve candidates** (`ROQET_SEARCH`, default `dense`):
+2. **Retrieve candidates** (`ROCQET_SEARCH`, default `dense`):
    - **`dense`** — cosine k-NN over the `dense` vector, fetching a pool of
      `max(limit, 40)` candidates.
    - **`fusion`** — Qdrant Query API with two prefetches (dense + sparse) fused
      by **Reciprocal Rank Fusion** server-side. *(Off by default — see §6.)*
-3. **Rerank** the pool ([`roqet.rerank`](roqet/rerank.py)) down to `limit`.
+3. **Rerank** the pool ([`rocqet.rerank`](rocqet/rerank.py)) down to `limit`.
 4. Apply `lib` / `kind` filters as Qdrant payload conditions on the prefetch.
 
-### Reranking (`ROQET_RERANK`, default `auto` = lexical)
+### Reranking (`ROCQET_RERANK`, default `auto` = lexical)
 
 The default reorders the dense candidate pool by fusing two rankings with RRF
 (`score = 1/(k+rank_dense) + 1/(k+rank_lexical)`, `k=60`):
@@ -143,16 +143,16 @@ benchmark.
 ### Premise-selection benchmark (automated, leakage-free)
 
 The 15-query set above is a directional gauge. The real benchmark is mined from
-proof scripts ([`roqet.mine_eval`](roqet/mine_eval.py)): for each proved theorem,
+proof scripts ([`rocqet.mine_eval`](rocqet/mine_eval.py)): for each proved theorem,
 the lemmas referenced in its proof body are its *premises* — declarations
 genuinely relevant to its statement. (statement → premises) is a leakage-free
 retrieval task (the proof body isn't indexed), and there are thousands of pairs
 for free. The set: **4,500 pairs**, balanced 1,500 each across stdlib/mathcomp/geocoq.
 
-Run it against the live pipeline (measures whatever ROQET_* config is set):
+Run it against the live pipeline (measures whatever ROCQET_* config is set):
 
 ```bash
-ROQET_EMBEDDER=fastembed python -m roqet.eval --limit 600
+ROCQET_EMBEDDER=fastembed python -m rocqet.eval --limit 600
 ```
 
 Baseline (fastembed dense + lexical rerank, same-library scope):
@@ -183,7 +183,7 @@ Honesty matters more here than a clean story:
 - **Cross-encoder reranking** (the textbook "biggest win") **regressed** quality:
   generic cross-encoders are trained on natural-language web text and score terse
   Coq declarations near-zero, scrambling correct dense hits. Kept as opt-in
-  (`ROQET_RERANK=cross`), off by default.
+  (`ROCQET_RERANK=cross`), off by default.
 - **Equal-weight BM25 + dense fusion** scored *worse* than dense+lexical (hit@5
   53% vs 80%). On prose queries the BM25 side injects keyword-matchy but wrong
   candidates (`add_assoc` for "commutative", `aa4` for "two plus two") that
@@ -218,11 +218,11 @@ Most trace back to the same root: terse names + thin/auto docstrings.
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `ROQET_EMBEDDER` | `hash` | Dense model (must match index). Prod: `fastembed`. |
-| `ROQET_SEARCH` | `dense` | `dense` retrieval, or `fusion` (dense+BM25 RRF). |
-| `ROQET_RERANK` | `auto` | `auto`/`lexical`, `cross`, or `off`. |
-| `ROQET_RERANK_CANDIDATES` | `40` | Candidate pool size before rerank. |
-| `ROQET_RRF_K` | `60` | RRF constant (higher = flatter rank weighting). |
+| `ROCQET_EMBEDDER` | `hash` | Dense model (must match index). Prod: `fastembed`. |
+| `ROCQET_SEARCH` | `dense` | `dense` retrieval, or `fusion` (dense+BM25 RRF). |
+| `ROCQET_RERANK` | `auto` | `auto`/`lexical`, `cross`, or `off`. |
+| `ROCQET_RERANK_CANDIDATES` | `40` | Candidate pool size before rerank. |
+| `ROCQET_RRF_K` | `60` | RRF constant (higher = flatter rank weighting). |
 
 ---
 

@@ -1,1 +1,1 @@
-"""Tests for Roqet."""
+"""Tests for Rocqet."""

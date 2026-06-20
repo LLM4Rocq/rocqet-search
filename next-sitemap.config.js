@@ -1,4 +1,4 @@
 module.exports = {
-  siteUrl: "https://roqet.vercel.app",
+  siteUrl: "https://rocqet.vercel.app",
   generateRobotsTxt: true,
 };

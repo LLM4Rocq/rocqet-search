@@ -1,7 +1,7 @@
 services:
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: roqet-qdrant
+    container_name: rocqet-qdrant
     restart: unless-stopped
     ports:
       - "6333:6333"
@@ -17,13 +17,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
-    container_name: roqet-api
+    container_name: rocqet-api
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - QDRANT_URL=http://qdrant:6333
-      - ROQET_EMBEDDER=hash
+      - ROCQET_EMBEDDER=hash
     depends_on:
       qdrant:
         condition: service_healthy
@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ui
-    container_name: roqet-ui
+    container_name: rocqet-ui
     restart: unless-stopped
     ports:
       - "3000:3000"

@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Roqet — Semantic search for Rocq",
+  title: "Rocqet — Semantic search for Rocq",
   description: "Find theorems, lemmas and definitions across Rocq/Coq libraries using natural language.",
   openGraph: {
-    title: "Roqet",
+    title: "Rocqet",
     description: "Find theorems faster in Rocq/Coq",
-    siteName: "Roqet",
+    siteName: "Rocqet",
   },
 };
 

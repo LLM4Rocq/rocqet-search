@@ -1,0 +1,8 @@
+[console_scripts]
+rocqet-describe = rocqet.describe:main
+rocqet-enrich = rocqet.enrich:main
+rocqet-extract = rocqet.extract:main
+rocqet-fetch = rocqet.fetch:main
+rocqet-index = rocqet.embedder:main
+rocqet-mcp = rocqet.mcp_server:main
+rocqet-validate = rocqet.validate:main

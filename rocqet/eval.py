@@ -3,13 +3,13 @@
 Given each mined (statement -> premises) pair, query the *actual* search pipeline
 with the statement and measure how well the premises are retrieved:
 recall@k, MRR, and MAP. This runs the same retrieval + rerank path the API uses,
-so config changes (ROQET_EMBEDDER / ROQET_SEARCH / ROQET_RERANK) are measured
+so config changes (ROCQET_EMBEDDER / ROCQET_SEARCH / ROCQET_RERANK) are measured
 directly.
 
-    ROQET_EMBEDDER=fastembed python -m roqet.eval --limit 600
+    ROCQET_EMBEDDER=fastembed python -m rocqet.eval --limit 600
 
 Compare configs by re-running with different env, e.g.:
-    ROQET_SEARCH=fusion python -m roqet.eval --limit 600
+    ROCQET_SEARCH=fusion python -m rocqet.eval --limit 600
 """
 
 from __future__ import annotations
@@ -20,12 +20,12 @@ import os
 from pathlib import Path
 
 # Default to the production embedder unless overridden.
-os.environ.setdefault("ROQET_EMBEDDER", "fastembed")
+os.environ.setdefault("ROCQET_EMBEDDER", "fastembed")
 
 
 def _retrieval():
     """Import the live pipeline lazily so env vars are read correctly."""
-    from roqet import api, rerank
+    from rocqet import api, rerank
 
     def search(query: str, lib: str | None, k: int) -> list[str]:
         vector = api.embedder().embed([query])[0]
@@ -68,8 +68,8 @@ def run_nl(args) -> int:
             mrr += 1.0 / rank
         per_hint.setdefault(r.get("hint", "?"), []).append(rank if rank and rank <= 10 else 0)
     n = max(len(rows), 1)
-    print(f"\nNL-query eval  ({len(rows)} queries)   [embedder={os.environ.get('ROQET_EMBEDDER')} "
-          f"search={os.environ.get('ROQET_SEARCH','dense')} rerank={os.environ.get('ROQET_RERANK','auto')}]")
+    print(f"\nNL-query eval  ({len(rows)} queries)   [embedder={os.environ.get('ROCQET_EMBEDDER')} "
+          f"search={os.environ.get('ROCQET_SEARCH','dense')} rerank={os.environ.get('ROCQET_RERANK','auto')}]")
     print("-" * 60)
     print(f"  hit@1  : {h1 / n:.3f}")
     print(f"  hit@5  : {h5 / n:.3f}")
@@ -127,9 +127,9 @@ def main(argv: list[str] | None = None) -> int:
         scored += 1
 
     n = max(scored, 1)
-    cfg = (f"embedder={os.environ.get('ROQET_EMBEDDER')} "
-           f"search={os.environ.get('ROQET_SEARCH', 'dense')} "
-           f"rerank={os.environ.get('ROQET_RERANK', 'auto')} "
+    cfg = (f"embedder={os.environ.get('ROCQET_EMBEDDER')} "
+           f"search={os.environ.get('ROCQET_SEARCH', 'dense')} "
+           f"rerank={os.environ.get('ROCQET_RERANK', 'auto')} "
            f"query={args.query_field} scope={'cross-lib' if args.cross_lib else 'same-lib'}")
     print(f"\nPremise-selection eval  ({scored} queries)   [{cfg}]")
     print("-" * 64)

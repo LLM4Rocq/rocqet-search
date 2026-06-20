@@ -7,7 +7,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from roqet.schema import normalize_declaration
+from rocqet.schema import normalize_declaration
 
 
 def load(path: Path) -> list[dict]:

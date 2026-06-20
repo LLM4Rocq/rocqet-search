@@ -1,4 +1,4 @@
-# Deploying Roqet
+# Deploying Rocqet
 
 Two pieces: the **API** (FastAPI + Qdrant + local embedder) on **Railway**, and the
 **UI** (Next.js) on **Vercel**.
@@ -31,7 +31,7 @@ on small tiers because it held the model *and* all 33k vectors in one process).
 3. Railway reads `railway.toml` and builds `Dockerfile.api` automatically.
 4. Wait for the build (it installs torch + builds the index; first build ~5–8 min).
 5. **Settings → Networking → Generate Domain** to get a public URL, e.g.
-   `https://roqet-api-production.up.railway.app`.
+   `https://rocqet-api-production.up.railway.app`.
 6. Verify: open `https://<your-domain>/health` → `{"status":"ok",...}`.
 
 ### Option B — deploy from the CLI
@@ -76,7 +76,7 @@ The deployed index is the snapshot in `deploy/declarations.enriched.jsonl`. To u
 it (new libraries, more declarations, different model):
 
 ```bash
-python3 -m roqet.fetch --lib stdlib --lib mathcomp
+python3 -m rocqet.fetch --lib stdlib --lib mathcomp
 SOURCES="--source repos/stdlib/theories=stdlib --source repos/mathcomp=mathcomp" \
   MODEL=local ./scripts/build_index.sh
 cp data/declarations.enriched.jsonl deploy/declarations.enriched.jsonl

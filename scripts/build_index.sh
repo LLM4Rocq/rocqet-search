@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build a searchable Roqet index.
+# Build a searchable Rocqet index.
 #
 # By default this indexes the small, offline demo corpus in fixtures/seed,
 # which contains recognizable declarations from each supported library and
@@ -10,7 +10,7 @@
 # To index real libraries instead, fetch them first and point this at the
 # checkouts, e.g.:
 #
-#   python3 -m roqet.fetch --lib stdlib --lib mathcomp
+#   python3 -m rocqet.fetch --lib stdlib --lib mathcomp
 #   SOURCES="--source repos/stdlib/theories=stdlib --source repos/mathcomp=mathcomp" \
 #     ./scripts/build_index.sh
 #
@@ -45,14 +45,14 @@ fi
 
 echo "==> Extracting declarations"
 # shellcheck disable=SC2086
-"${PYTHON}" -m roqet.extract ${SOURCES} --out data/declarations.jsonl
+"${PYTHON}" -m rocqet.extract ${SOURCES} --out data/declarations.jsonl
 
 # GeoCoq gets curated treatment: only the geometry-relevant subdirs, and only
 # Lemma/Theorem/Definition/Corollary (the repo is full of Ltac/tactic noise).
 # Chapter (Ch02..Ch16) is derived from the Tarski_dev filenames automatically.
 if [[ -d repos/geocoq/theories ]]; then
   echo "==> Extracting GeoCoq (curated)"
-  "${PYTHON}" -m roqet.extract \
+  "${PYTHON}" -m rocqet.extract \
     --source repos/geocoq/theories=geocoq \
     --include Main/Tarski_dev --include Main/Highschool --include Main/Utils \
     --include Axioms --include Elements \
@@ -61,14 +61,14 @@ if [[ -d repos/geocoq/theories ]]; then
 fi
 
 echo "==> Enriching and deduplicating"
-"${PYTHON}" -m roqet.enrich \
+"${PYTHON}" -m rocqet.enrich \
   --input data/declarations.jsonl \
   --out data/declarations.enriched.jsonl \
   --dedupe
 
 echo "==> Indexing into Qdrant (model: ${MODEL})"
 # shellcheck disable=SC2086
-"${PYTHON}" -m roqet.embedder \
+"${PYTHON}" -m rocqet.embedder \
   --input data/declarations.enriched.jsonl \
   --model "${MODEL}" \
   ${QDRANT_FLAG} \

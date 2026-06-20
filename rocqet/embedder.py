@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Protocol
 
-from roqet.schema import (
+from rocqet.schema import (
     declaration_text,
     normalize_declaration,
     sparse_text,
@@ -21,8 +21,8 @@ from roqet.schema import (
 DENSE_VECTOR_NAME = "dense"
 SPARSE_VECTOR_NAME = "text"
 
-COLLECTION_NAME = os.environ.get("ROQET_COLLECTION", "roqet_declarations")
-BATCH_SIZE = int(os.environ.get("ROQET_BATCH_SIZE", "64"))
+COLLECTION_NAME = os.environ.get("ROCQET_COLLECTION", "rocqet_declarations")
+BATCH_SIZE = int(os.environ.get("ROCQET_BATCH_SIZE", "64"))
 QDRANT_PATH = os.environ.get("QDRANT_PATH", "data/qdrant_storage")
 DEFAULT_LOCAL_MODEL = os.environ.get("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 FASTEMBED_MODEL = os.environ.get("FASTEMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")

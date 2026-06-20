@@ -2,7 +2,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from roqet.extract import SourceRoot, iter_declarations
+from rocqet.extract import SourceRoot, iter_declarations
 
 
 class ExtractTests(unittest.TestCase):

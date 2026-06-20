@@ -16,7 +16,7 @@ import {
   EXAMPLE_QUERIES,
 } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://roqet-production-b979.up.railway.app";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://rocqet-production-b979.up.railway.app";
 
 // ---------------------------------------------------------------------------
 // Atoms
@@ -229,10 +229,10 @@ export default function Home() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 py-5">
         <button onClick={clearAll} className="text-xl font-bold tracking-tight text-[var(--text)]">
-          Roqet
+          Rocqet
         </button>
         <a
-          href="https://github.com/still-rollin/Roqet"
+          href="https://github.com/still-rollin/Rocqet"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-3 py-1.5 transition-colors"
@@ -247,7 +247,7 @@ export default function Home() {
         {heroMode && (
           <div className="text-center mb-8 animate-fade-in">
             <h1 className="text-4xl sm:text-5xl font-bold text-[var(--text)] tracking-tight">
-              Roqet Search!
+              Rocqet Search!
             </h1>
             <p className="text-[var(--muted)] mt-4 text-sm">
               Semantic search across Rocq/Coq libraries — describe it in plain language.
@@ -361,12 +361,12 @@ export default function Home() {
               <summary className="text-xs text-[var(--muted)] cursor-pointer hover:text-[var(--text)] text-center list-none">
                 Use it from Claude Code / an MCP client →
               </summary>
-              <pre className="mt-3 text-[11px] leading-relaxed bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-3 overflow-x-auto text-[var(--text)]">{`claude mcp add roqet \\
-  --env ROQET_API_URL=${API_URL} \\
-  -- roqet-mcp`}</pre>
+              <pre className="mt-3 text-[11px] leading-relaxed bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-3 overflow-x-auto text-[var(--text)]">{`claude mcp add rocqet \\
+  --env ROCQET_API_URL=${API_URL} \\
+  -- rocqet-mcp`}</pre>
               <p className="text-[11px] text-[var(--muted2)] mt-2 text-center">
                 Exposes semantic search as agent tools. See the{" "}
-                <a href="https://github.com/still-rollin/Roqet#mcp-server" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">README</a>.
+                <a href="https://github.com/still-rollin/Rocqet#mcp-server" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">README</a>.
               </p>
             </details>
           </div>
@@ -404,7 +404,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="px-6 py-5 text-xs text-[var(--muted2)] flex items-center justify-between">
-        <span>© 2026 Roqet. Semantic search for Rocq.</span>
+        <span>© 2026 Rocqet. Semantic search for Rocq.</span>
         <span className="flex items-center gap-4">
           {totalDecls > 0 && <span className="hidden sm:inline tabular-nums">{totalDecls.toLocaleString()} decls · {totalLibs} libs</span>}
           <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--text)] transition-colors">

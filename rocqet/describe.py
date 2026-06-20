@@ -9,8 +9,8 @@ touches indexing.
 Resumable: descriptions are cached by stable_id in data/descriptions_cache.jsonl,
 so re-runs skip what's already done and a crash never loses work.
 
-    GEMINI_API_KEY=... python -m roqet.describe --library geocoq
-    GEMINI_API_KEY=... python -m roqet.describe --library geocoq --limit 24   # test slice
+    GEMINI_API_KEY=... python -m rocqet.describe --library geocoq
+    GEMINI_API_KEY=... python -m rocqet.describe --library geocoq --limit 24   # test slice
 
 The API key is read from the environment and never written to disk.
 """
@@ -25,7 +25,7 @@ from pathlib import Path
 
 import httpx
 
-from roqet.schema import normalize_declaration, stable_id
+from rocqet.schema import normalize_declaration, stable_id
 
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"

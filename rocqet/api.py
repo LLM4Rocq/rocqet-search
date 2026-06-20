@@ -1,4 +1,4 @@
-"""FastAPI search service for Roqet."""
+"""FastAPI search service for Rocqet."""
 
 from __future__ import annotations
 
@@ -12,21 +12,21 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from roqet import rerank
-from roqet.embedder import (
+from rocqet import rerank
+from rocqet.embedder import (
     COLLECTION_NAME,
     DENSE_VECTOR_NAME,
     SPARSE_VECTOR_NAME,
     get_client,
     make_embedder,
 )
-from roqet.schema import sparse_vector
+from rocqet.schema import sparse_vector
 
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 50
 
 app = FastAPI(
-    title="Roqet API",
+    title="Rocqet API",
     description="Semantic search over Rocq/Coq mathematical libraries",
     version="0.1.0",
 )
@@ -41,11 +41,11 @@ _embedder = None
 _client = None
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-logger = logging.getLogger("roqet")
+logger = logging.getLogger("rocqet")
 
-# Simple in-memory per-IP sliding-window rate limit (ROQET_RATE_LIMIT=0 disables).
+# Simple in-memory per-IP sliding-window rate limit (ROCQET_RATE_LIMIT=0 disables).
 # Fine for a single-instance deployment; protects the Qdrant quota from abuse.
-RATE_LIMIT = int(os.environ.get("ROQET_RATE_LIMIT", "60"))  # requests/min/IP
+RATE_LIMIT = int(os.environ.get("ROCQET_RATE_LIMIT", "60"))  # requests/min/IP
 RATE_WINDOW = 60.0
 _hits: dict[str, deque] = {}
 
@@ -97,7 +97,7 @@ class StatsResponse(BaseModel):
 def embedder():
     global _embedder
     if _embedder is None:
-        _embedder = make_embedder(os.environ.get("ROQET_EMBEDDER", "hash"))
+        _embedder = make_embedder(os.environ.get("ROCQET_EMBEDDER", "hash"))
     return _embedder
 
 
@@ -205,7 +205,7 @@ def scroll_counts(field: str) -> dict[str, int]:
             return dict(sorted(counts.items()))
 
 
-SEARCH_MODE = os.environ.get("ROQET_SEARCH", "dense").strip().lower()
+SEARCH_MODE = os.environ.get("ROCQET_SEARCH", "dense").strip().lower()
 
 
 def query_points(query: str, vector: list[float], query_filter, limit: int):
@@ -213,7 +213,7 @@ def query_points(query: str, vector: list[float], query_filter, limit: int):
 
     Default: dense (semantic) retrieval over the named dense vector — measured best
     on natural-language queries, with lexical reordering applied afterwards by
-    `rerank`. Opt-in `ROQET_SEARCH=fusion` blends dense + BM25 sparse with RRF
+    `rerank`. Opt-in `ROCQET_SEARCH=fusion` blends dense + BM25 sparse with RRF
     (better recall for identifier queries, but noisier on prose queries).
     """
     qdrant = client()
