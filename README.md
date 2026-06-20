@@ -42,11 +42,17 @@ through a FastAPI backend, and presents results in a Next.js UI.
 - **Dependency-free extraction** — parses `.v` files directly (handles nested
   comments, strings, and statement boundaries). No Rocq/Coq toolchain required.
 - **Pluggable embeddings** — `hash` (offline smoke test), `local`
-  (sentence-transformers), or `openai`.
-- **Vector search** — cosine similarity over Qdrant, with `library` and `kind`
-  filters.
+  (sentence-transformers), `fastembed` (ONNX, low-RAM hosting), or `openai`.
+- **Hybrid vector search** — dense cosine + BM25 sparse over Qdrant, with a
+  lexical RRF rerank and `library` / `kind` / `chapter` filters.
 - **Rule-based enrichment** — fills missing docstrings and deduplicates
   declarations across libraries.
+- **Offline NL descriptions** *(optional, index-time only)* — generate one-line
+  plain-English summaries to embed alongside the formal text. Serving stays
+  **LLM-free**.
+- **Measured quality** — premise-selection and NL-query benchmarks
+  (`rocqet.eval`); see [SEARCH.md](SEARCH.md).
+- **MCP server** — expose search as a tool for LLM agents (see below).
 - **Clean search UI** — debounced search, filters, score bars, and direct
   "View source" links to GitHub.
 - **Offline demo corpus** — a curated seed dataset so the app works on a fresh
@@ -64,7 +70,7 @@ through a FastAPI backend, and presents results in a Next.js UI.
 | Validate | `rocqet.validate` | Inspect/grep a JSONL file from the CLI |
 | Embed/Index | `rocqet.embedder` | Embed declarations and upsert into Qdrant |
 | Serve | `rocqet.api` | FastAPI search service (`/search`, `/stats`, …) |
-| UI | `app/` + `lib/api.ts` | Next.js front end calling the API |
+| UI | `web/` | Next.js front end calling the API |
 
 Shared helpers (canonical schema, GitHub URL building, stable IDs) live in
 `rocqet.schema`.
@@ -89,15 +95,17 @@ builder, not a typechecker.
 ## Setup
 
 ```bash
-# Backend
+# Backend (dependencies are pyproject extras — see below)
 python3 -m venv .venv
 source .venv/bin/activate          # or call .venv/bin/python directly
-pip install -r requirements.txt    # full deps incl. local/openai embedders
-# For a lightweight hash-only install:
-#   pip install "fastapi>=0.111" "uvicorn[standard]>=0.29" "qdrant-client>=1.9" "pydantic>=2"
+pip install -e ".[local,dev]"      # local (torch) embedder + test/lint tooling
+# Other backends:  pip install -e ".[serve]"   # fastembed (ONNX, low-RAM hosting)
+#                  pip install -e ".[openai]"  # OpenAI embeddings
+#                  pip install -e ".[mcp]"     # the MCP server only
+# Bare 'pip install -e .' gets just the API + Qdrant client (hash embedder).
 
 # Frontend
-npm install
+cd web && npm install && cd ..
 ```
 
 > If you don't activate the venv, prefix Python/uvicorn commands with
@@ -126,7 +134,7 @@ ROCQET_EMBEDDER=hash .venv/bin/uvicorn rocqet.api:app --reload --port 8000
 **3. Start the UI** (terminal 2):
 
 ```bash
-npm run dev
+cd web && npm run dev
 ```
 
 Open **[http://localhost:3000](http://localhost:3000)** and try a query like
@@ -145,6 +153,11 @@ curl "http://localhost:8000/search?q=group+homomorphism+identity&limit=3"
 ---
 
 ## Full pipeline (real libraries)
+
+> **Shortcut:** to reproduce the exact deployed corpus, run
+> `./scripts/build_dataset.sh` (fetch → extract → enrich → `deploy/declarations.enriched.jsonl`),
+> or download the prebuilt dataset from a [Release](../../releases/latest).
+> See **[docs/DATA.md](docs/DATA.md)**. The manual steps below show what it does.
 
 To index actual libraries instead of the demo corpus:
 
@@ -227,6 +240,7 @@ Semantic search.
 | `limit` | int | 10 | Results to return (1–50) |
 | `lib` | string | — | Filter by library; comma-separated for multiple |
 | `kind` | string | — | Filter by kind (e.g. `Lemma,Theorem`) |
+| `chapter` | string | — | Filter by GeoCoq chapter (e.g. `Ch02`); geocoq only |
 
 ```bash
 curl "http://localhost:8000/search?q=list+append+associativity&lib=stdlib&kind=Lemma&limit=5"
@@ -284,9 +298,9 @@ ROCQET_API_URL=https://rocqet-production-b979.up.railway.app rocqet-mcp     # st
 ROCQET_API_URL=http://localhost:8000 rocqet-mcp
 ```
 
-> `pip install -r requirements-mcp.txt` installs only the dependencies (`mcp`,
-> `httpx`); it does **not** create the `rocqet-mcp` command. Use `pip install -e ".[mcp]"`,
-> or run the module directly with `python -m rocqet.mcp_server`.
+> `pip install -e ".[mcp]"` installs the MCP dependencies (`mcp`, `httpx`) **and**
+> creates the `rocqet-mcp` command. You can also run the module directly with
+> `python -m rocqet.mcp_server`.
 
 Tools exposed:
 - **`rocqet_search(query, lib?, kind?, limit?)`** — semantic search; returns matching
@@ -425,49 +439,59 @@ QDRANT_URL=http://localhost:6333 python3 -m rocqet.embedder \
 ## Deployment
 
 `railway.toml` is a starting point for [Railway](https://railway.app): it builds
-the API from `Dockerfile.api`, serves with `uvicorn api:app`, and health-checks
-`/health`. Set `QDRANT_URL`, `QDRANT_API_KEY`, `ROCQET_EMBEDDER`, and any model
-keys in the Railway dashboard. Use a managed Qdrant (e.g. Qdrant Cloud) rather
-than the on-disk store for hosted deployments.
+the API from `Dockerfile.api`, serves with `uvicorn rocqet.api:app`, and
+health-checks `/health`. Set `QDRANT_URL`, `QDRANT_API_KEY`, `ROCQET_EMBEDDER`,
+and any model keys in the Railway dashboard. Use a managed Qdrant (e.g. Qdrant
+Cloud) rather than the on-disk store for hosted deployments.
+
+The UI deploys to [Vercel](https://vercel.com) with the project **Root
+Directory set to `web/`**. See **[DEPLOY.md](DEPLOY.md)** for the full hosted
+setup (Vercel UI + Railway API + managed Qdrant).
 
 ---
 
 ## Development
 
 ```bash
-# Run the test suite
-python3 -m unittest discover -s tests
-# or, with pytest installed:
-pip install -r requirements-dev.txt && pytest -q
+pip install -e ".[dev]"      # pytest + ruff
+pytest -q                    # backend tests
+ruff check rocqet tests scripts
 
-# Lint
-ruff check .
+# Frontend typecheck
+cd web && npx tsc --noEmit
 ```
 
+CI (`.github/workflows/ci.yml`) runs the same lint + tests on every push and PR.
+
 Console scripts (after `pip install -e .`):
-`rocqet-fetch`, `rocqet-extract`, `rocqet-enrich`, `rocqet-index`, `rocqet-validate`.
+`rocqet-fetch`, `rocqet-extract`, `rocqet-enrich`, `rocqet-index`,
+`rocqet-validate`, `rocqet-describe`, `rocqet-mcp`.
 
 ---
 
 ## Project layout
 
 ```
-rocqet/                 Python package
-  schema.py            Canonical schema, GitHub URLs, stable IDs
-  fetch.py             Clone/update libraries
-  extract.py           .v parser → JSONL
-  enrich.py            Docstring generation + dedupe
-  validate.py          CLI inspector
-  embedder.py          Embedders + Qdrant indexing
-  api.py               FastAPI service
-app/                   Next.js app (layout, page, styles)
-lib/api.ts             Front-end API client + constants
-fixtures/seed/         Offline demo corpus (committed)
-scripts/build_index.sh One-command pipeline
-tests/                 unittest suite
-data/                  Generated JSONL + Qdrant store (gitignored)
-api.py, embedder.py …  Thin root wrappers for the rocqet.* modules
+rocqet/                  Python package
+  schema.py             Canonical schema, GitHub URLs, stable IDs
+  fetch.py              Clone/update libraries
+  extract.py            .v parser → JSONL
+  enrich.py             Docstring generation + dedupe
+  validate.py           CLI inspector
+  embedder.py           Embedders + Qdrant indexing
+  api.py                FastAPI service
+  rerank.py             Lexical/RRF reranking
+  describe.py           Offline NL-description generator (index-time only)
+  eval.py, mine_eval.py Retrieval benchmarks
+  mcp_server.py         MCP server (thin HTTP client over the API)
+web/                    Next.js app (app/, lib/api.ts, public/, configs)
+fixtures/seed/          Offline demo corpus (committed)
+scripts/                build_dataset.sh, build_index.sh, index_cloud.sh, …
+tests/                  pytest suite
+docs/DATA.md            How to obtain/build the dataset
+data/, deploy/*.jsonl   Generated artifacts (gitignored)
 Dockerfile*, docker-compose.yml, railway.toml, deploy.sh
+README.md, DEPLOY.md, SEARCH.md, CONTRIBUTING.md
 ```
 
 ---
@@ -506,9 +530,11 @@ The fetch helper knows about:
 |-----|---------|--------|
 | `stdlib` | Rocq standard library | rocq-prover/stdlib |
 | `mathcomp` | Mathematical Components | math-comp/math-comp |
+| `mathcomp-analysis` | MathComp Analysis | math-comp/analysis |
+| `geocoq` | GeoCoq (curated) | GeoCoq/GeoCoq |
 | `unimath` | UniMath | UniMath/UniMath |
 | `hott` | HoTT | HoTT/Coq-HoTT |
-| `iris` | Iris | gitlab.mpi-sws.org/iris/iris |
 
-A later quality pass can swap the regex extractor for `coq-lsp` or SerAPI to get
-fully elaborated declarations.
+The deployed corpus currently indexes `stdlib`, `mathcomp`, `mathcomp-analysis`,
+and `geocoq` (see [docs/DATA.md](docs/DATA.md)). A later quality pass can swap the
+regex extractor for `coq-lsp` or SerAPI to get fully elaborated declarations.

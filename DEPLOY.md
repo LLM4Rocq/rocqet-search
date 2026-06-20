@@ -56,7 +56,8 @@ the image, so no persistent volume is required.
 ## 2. Frontend → Vercel
 
 1. On [vercel.com](https://vercel.com): **Add New → Project** → import this repo.
-2. Framework preset: **Next.js** (auto-detected). Root directory: repo root.
+2. Framework preset: **Next.js** (auto-detected). **Root Directory: `web`**
+   (the Next.js app lives in `web/`, not the repo root).
 3. **Environment Variables** → add:
    ```
    NEXT_PUBLIC_API_URL = https://<your-railway-domain>
