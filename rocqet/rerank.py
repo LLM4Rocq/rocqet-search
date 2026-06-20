@@ -89,7 +89,6 @@ def _lexical_score(terms: list[str], doc: set[str]) -> float:
 
 
 def _rrf_fuse(hits: list, query: str, limit: int) -> list[tuple]:
-    n = len(hits)
     terms = _query_terms(query)
 
     # Dense rank = current order (best first).

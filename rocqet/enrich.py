@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from rocqet.schema import canonical_key, normalize_declaration
+from rocqet.schema import normalize_declaration
 
 
 class RuleBasedEnricher:

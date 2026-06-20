@@ -64,7 +64,9 @@ def run_nl(args) -> int:
         names = search(r["query"], None, max(k, 20))  # global search, like a real user
         rank = next((i for i, n in enumerate(names, 1) if n in gold), None)
         if rank:
-            h1 += rank <= 1; h5 += rank <= 5; h10 += rank <= 10
+            h1 += rank <= 1
+            h5 += rank <= 5
+            h10 += rank <= 10
             mrr += 1.0 / rank
         per_hint.setdefault(r.get("hint", "?"), []).append(rank if rank and rank <= 10 else 0)
     n = max(len(rows), 1)
@@ -122,7 +124,10 @@ def main(argv: list[str] | None = None) -> int:
         mrr = next((1.0 / i for i, n in enumerate(ranked[:k], 1) if n in gold), 0.0)
         ap = average_precision(ranked, gold, k)
 
-        agg["r5"] += r5; agg["r10"] += r10; agg["mrr"] += mrr; agg["map"] += ap
+        agg["r5"] += r5
+        agg["r10"] += r10
+        agg["mrr"] += mrr
+        agg["map"] += ap
         per_lib.setdefault(p["library"], []).append(r10)
         scored += 1
 

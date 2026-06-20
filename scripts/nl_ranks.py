@@ -16,7 +16,7 @@ from rocqet import api, rerank  # noqa: E402
 
 only = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].endswith(".jsonl") else None
 path = next((a for a in sys.argv[1:] if a.endswith(".jsonl")), "data/eval/nl_queries.jsonl")
-rows = [json.loads(l) for l in Path(path).open() if l.strip()]
+rows = [json.loads(line) for line in Path(path).open() if line.strip()]
 
 DEPTH = 50
 for r in rows:

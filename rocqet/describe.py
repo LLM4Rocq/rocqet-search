@@ -106,7 +106,8 @@ def main(argv: list[str] | None = None) -> int:
     if not key:
         raise SystemExit("Set GEMINI_API_KEY in the environment.")
 
-    records = [normalize_declaration(json.loads(l)) for l in args.input.open(encoding="utf-8") if l.strip()]
+    records = [normalize_declaration(json.loads(line))
+               for line in args.input.open(encoding="utf-8") if line.strip()]
     cache = load_cache(args.cache)
     print(f"loaded {len(records):,} records; cache has {len(cache):,} descriptions")
 
