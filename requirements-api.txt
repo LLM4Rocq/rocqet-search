@@ -1,8 +1,0 @@
-# Slim dependency set for the hosted API image (Dockerfile.api).
-# Uses fastembed (ONNX runtime) instead of torch/sentence-transformers, which
-# cuts the image from ~2GB to ~500MB and the runtime RAM well under 1GB.
-fastapi>=0.111
-uvicorn[standard]>=0.29
-qdrant-client>=1.9
-pydantic>=2
-fastembed>=0.3

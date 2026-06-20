@@ -5,13 +5,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Slim deps: fastembed (ONNX) for query embedding only — no torch, no in-process
-# vector DB. Vectors live in managed Qdrant (set QDRANT_URL / QDRANT_API_KEY),
-# so the container's memory stays small and stable.
-COPY requirements-api.txt .
-RUN pip install --no-cache-dir -r requirements-api.txt
-
+# Slim deps: the 'serve' extra pulls fastembed (ONNX) for query embedding only —
+# no torch, no in-process vector DB. Vectors live in managed Qdrant (set
+# QDRANT_URL / QDRANT_API_KEY), so the container's memory stays small and stable.
+COPY pyproject.toml README.md ./
 COPY roqet ./roqet
+RUN pip install --no-cache-dir ".[serve]"
 
 ENV ROQET_EMBEDDER=fastembed \
     FASTEMBED_CACHE_PATH=/app/.cache/fastembed

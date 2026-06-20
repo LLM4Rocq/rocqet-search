@@ -1,9 +1,10 @@
 [project]
 name = "roqet"
 version = "0.1.0"
-description = "Semantic search experiments for Rocq/Coq mathematical libraries"
+description = "Semantic search for Rocq/Coq mathematical libraries"
 readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
 dependencies = [
   "fastapi>=0.111",
   "uvicorn[standard]>=0.29",
@@ -11,16 +12,33 @@ dependencies = [
   "pydantic>=2",
 ]
 
+# Embedder backends are opt-in (imported lazily), so the base install stays slim.
+#   serve  -> hosted API: fastembed (ONNX, no torch) — small image, low RAM
+#   local  -> sentence-transformers (torch) for local indexing/eval
+#   openai -> OpenAI embeddings backend
+#   mcp    -> the MCP server (a thin HTTP client; needs none of the index deps)
+#   dev    -> tooling + test deps
+[project.optional-dependencies]
+serve = ["fastembed>=0.3"]
+local = ["sentence-transformers>=2.7"]
+openai = ["openai>=1.30"]
+mcp = ["mcp>=1.2", "httpx>=0.27"]
+dev = ["ruff>=0.4", "pytest>=8", "httpx>=0.27"]
+
 [project.scripts]
 roqet-extract = "roqet.extract:main"
 roqet-fetch = "roqet.fetch:main"
 roqet-enrich = "roqet.enrich:main"
 roqet-index = "roqet.embedder:main"
 roqet-validate = "roqet.validate:main"
+roqet-describe = "roqet.describe:main"
 roqet-mcp = "roqet.mcp_server:main"
 
-[project.optional-dependencies]
-mcp = ["mcp>=1.2", "httpx>=0.27"]
+[tool.setuptools.packages.find]
+include = ["roqet*"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
