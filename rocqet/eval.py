@@ -25,16 +25,28 @@ os.environ.setdefault("ROCQET_EMBEDDER", "fastembed")
 
 def _retrieval():
     """Import the live pipeline lazily so env vars are read correctly."""
+    import time
+
     from rocqet import api, rerank
 
     def search(query: str, lib: str | None, k: int) -> list[str]:
         vector = api.embedder().embed([query])[0]
-        hits = api.query_points(
-            query=query,
-            vector=vector,
-            query_filter=api.build_filter(lib, None),
-            limit=max(k, 50),
-        )
+        # A managed (free-tier) Qdrant occasionally drops a query mid-run; retry a
+        # few times with backoff so one network blip doesn't kill a 292-query eval.
+        for attempt in range(4):
+            try:
+                hits = api.query_points(
+                    query=query,
+                    vector=vector,
+                    query_filter=api.build_filter(lib, None),
+                    limit=max(k, 50),
+                )
+                break
+            except Exception as exc:  # noqa: BLE001 - transient network/timeout
+                if attempt == 3:
+                    print(f"[eval] query failed after retries, skipping: {exc}")
+                    return []
+                time.sleep(2 ** attempt)
         scored = rerank.rerank(query, hits, max(k, 50))
         return [(h.payload or {}).get("name", "") for h, _ in scored]
 
