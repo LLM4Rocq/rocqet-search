@@ -296,7 +296,7 @@ with `ROCQET_API_URL`. Use the hosted backend (no setup), or your own local one.
 pip install -e ".[mcp]"
 
 # Point at the hosted backend (recommended — nothing else to run):
-ROCQET_API_URL=https://roqet-production-b979.up.railway.app rocqet-mcp     # stdio transport
+ROCQET_API_URL=https://rocqet-api.onrender.com rocqet-mcp     # stdio transport
 
 # ...or at a backend you're running locally:
 ROCQET_API_URL=http://localhost:8000 rocqet-mcp
@@ -315,7 +315,7 @@ Tools exposed:
 
 Claude Code (point `ROCQET_API_URL` at the hosted backend, or your local one):
 ```bash
-claude mcp add rocqet --env ROCQET_API_URL=https://roqet-production-b979.up.railway.app -- rocqet-mcp
+claude mcp add rocqet --env ROCQET_API_URL=https://rocqet-api.onrender.com -- rocqet-mcp
 ```
 
 Claude Desktop (`claude_desktop_config.json`):
@@ -324,7 +324,7 @@ Claude Desktop (`claude_desktop_config.json`):
   "mcpServers": {
     "rocqet": {
       "command": "rocqet-mcp",
-      "env": { "ROCQET_API_URL": "https://roqet-production-b979.up.railway.app" }
+      "env": { "ROCQET_API_URL": "https://rocqet-api.onrender.com" }
     }
   }
 }
