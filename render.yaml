@@ -1,0 +1,29 @@
+# Render deployment for the Rocqet API (a drop-in for Railway).
+#
+# Render → New → Blueprint → connect this repo. Render reads this file, builds
+# Dockerfile.api, and injects $PORT (the CMD already binds to it). Free plan; the
+# service sleeps after ~15 min idle and cold-starts in ~30-60s — fine for a demo /
+# MCP backend.
+#
+# Set the two secrets (marked sync:false) in the dashboard after the first deploy:
+#   QDRANT_URL, QDRANT_API_KEY   (your managed Qdrant cluster)
+# Index the cluster once (scripts/index_cloud.sh with the mathcomp ship corpus)
+# before or after — the API just reads it.
+services:
+  - type: web
+    name: rocqet-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.api
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: ROCQET_EMBEDDER
+        value: fastembed
+      - key: ROCQET_COLLECTION
+        value: rocqet_declarations
+      - key: CORS_ORIGINS
+        value: https://rocqet.vercel.app
+      - key: QDRANT_URL
+        sync: false      # set in dashboard (secret)
+      - key: QDRANT_API_KEY
+        sync: false      # set in dashboard (secret)
