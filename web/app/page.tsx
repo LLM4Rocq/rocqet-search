@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
-  Search, Loader2, ExternalLink, ChevronDown, X, Copy, Check, GitBranch, Sparkles,
+  Search, Loader2, ExternalLink, ChevronDown, X, Copy, Check, GitBranch, Sparkles, Sun, Moon,
 } from "lucide-react";
 import {
   searchDeclarations,
@@ -31,6 +31,31 @@ function ComingSoonBanner() {
         Stdlib &amp; MathComp-Analysis coming soon.
       </span>
     </div>
+  );
+}
+
+function ThemeToggle() {
+  const [dark, setDark] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  const toggle = () => {
+    const next = !document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", next);
+    try { localStorage.setItem("rocqet-theme", next ? "dark" : "light"); } catch {}
+    setDark(next);
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      aria-label="Toggle dark mode"
+      className="flex items-center justify-center w-8 h-8 text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg transition-colors"
+    >
+      {dark === null ? null : dark ? <Sun size={14} /> : <Moon size={14} />}
+    </button>
   );
 }
 
@@ -89,7 +114,12 @@ function ResultCard({ r, rank }: { r: SearchResult; rank: number }) {
                 {r.chapter}
               </span>
             )}
-            <span className="text-[11px] text-[var(--muted2)] ml-auto tabular-nums">{score}%</span>
+            <span className="flex items-center gap-2 ml-auto shrink-0">
+              <span className="score-meter" title={`Relevance score: ${score}%`}>
+                <span style={{ width: `${score}%` }} />
+              </span>
+              <span className="text-[11px] text-[var(--muted2)] tabular-nums">{score}%</span>
+            </span>
           </div>
 
           {r.type_signature && (
@@ -244,14 +274,17 @@ export default function Home() {
         <button onClick={clearAll} className="text-xl font-bold tracking-tight text-[var(--text)]">
           Rocqet
         </button>
-        <a
-          href="https://github.com/LLM4Rocq/rocqet-search"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-3 py-1.5 transition-colors"
-        >
-          <GitBranch size={14} /> GitHub
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://github.com/LLM4Rocq/rocqet-search"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-3 py-1.5 transition-colors"
+          >
+            <GitBranch size={14} /> GitHub
+          </a>
+          <ThemeToggle />
+        </div>
       </nav>
 
       {/* Main */}
@@ -281,6 +314,7 @@ export default function Home() {
         {/* Search bar */}
         <div className="relative">
           <div className={`flex items-center gap-3 bg-[var(--surface)] border rounded-2xl px-5 py-4 transition-all duration-150
+            focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/25
             ${heroMode ? "search-shadow" : ""}
             ${query ? "border-[var(--border-strong)]" : "border-[var(--border)] hover:border-[var(--border-strong)]"}`}>
             {loading
@@ -355,7 +389,7 @@ export default function Home() {
 
         {/* Error */}
         {error && (
-          <div className="mt-5 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+          <div className="mt-5 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-sm">
             {error}
           </div>
         )}
@@ -426,7 +460,7 @@ export default function Home() {
         <span>© 2026 Rocqet. Semantic search for Rocq.</span>
         <span className="flex items-center gap-4">
           {totalDecls > 0 && <span className="hidden sm:inline tabular-nums">{totalDecls.toLocaleString()} decls · {totalLibs} libs</span>}
-          <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--text)] transition-colors">
+          <a href="https://github.com/LLM4Rocq/rocqet-search" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--text)] transition-colors">
             <GitBranch size={15} />
           </a>
         </span>
