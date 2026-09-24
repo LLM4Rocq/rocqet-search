@@ -55,9 +55,9 @@ export const LIBRARIES = ["stdlib", "mathcomp", "geocoq","mathcomp-analysis", "u
 export type Library = typeof LIBRARIES[number];
 
 // Currently indexed & searchable. We only ship a library once it has high-quality
-// natural-language descriptions (MathComp is first). The rest are rolling out.
-export const ACTIVE_LIBRARIES = ["mathcomp"] as const;
-export const COMING_SOON_LIBRARIES = ["stdlib", "mathcomp-analysis", "geocoq"] as const;
+// natural-language descriptions (MathComp first, GeoCoq second). The rest are rolling out.
+export const ACTIVE_LIBRARIES = ["mathcomp", "geocoq"] as const;
+export const COMING_SOON_LIBRARIES = ["stdlib", "mathcomp-analysis"] as const;
 
 // GeoCoq Tarski_dev chapters (Ch02–Ch16). Used for the geocoq-only chapter filter.
 export const GEOCOQ_CHAPTERS = [
