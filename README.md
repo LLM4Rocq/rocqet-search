@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/LLM4Rocq/rocqet-search/actions/workflows/ci.yml/badge.svg)](https://github.com/LLM4Rocq/rocqet-search/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/github/license/LLM4Rocq/rocqet-search)](LICENSE)
-[![Live demo](https://img.shields.io/badge/demo-roqet.vercel.app-4f46e5)](https://roqet.vercel.app)
+[![Live demo](https://img.shields.io/badge/demo-roqet.vercel.app-4f46e5)](https://rocqet.vercel.app)
 
 **Semantic search over Rocq/Coq mathematical libraries.**
 
