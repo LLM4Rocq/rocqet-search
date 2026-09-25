@@ -7,7 +7,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 GITHUB_BASES = {
     "stdlib": "https://github.com/rocq-prover/stdlib/blob/master/theories",
     "coq": "https://github.com/coq/coq/blob/master/theories",

@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     total = 0
     with args.out.open("w", encoding="utf-8") as out:
-        for lib, pairs in by_lib.items():
+        for pairs in by_lib.values():
             # Deterministic, balanced sample: evenly stride through the pairs.
             if len(pairs) > args.per_lib_cap:
                 step = len(pairs) / args.per_lib_cap

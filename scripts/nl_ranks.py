@@ -12,11 +12,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("ROCQET_EMBEDDER", "fastembed")
-from rocqet import api, rerank  # noqa: E402
+from rocqet import api, rerank
 
 only = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].endswith(".jsonl") else None
 path = next((a for a in sys.argv[1:] if a.endswith(".jsonl")), "data/eval/nl_queries.jsonl")
-rows = [json.loads(line) for line in Path(path).open() if line.strip()]
+with Path(path).open(encoding="utf-8") as fh:
+    rows = [json.loads(line) for line in fh if line.strip()]
 
 DEPTH = 50
 for r in rows:

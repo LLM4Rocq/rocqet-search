@@ -10,12 +10,11 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
 
 from rocqet.schema import make_github_url
-
 
 DECLARATION_KINDS = (
     "Theorem",

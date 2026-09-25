@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import math
 import os
 import time
 from pathlib import Path
 from typing import Protocol
+
+logger = logging.getLogger(__name__)
 
 from rocqet.schema import (
     declaration_text,
@@ -91,7 +94,7 @@ class FastEmbedEmbedder:
 
         self.model = TextEmbedding(model_name)
         probe = next(iter(self.model.embed(["probe"])))
-        self.dim = int(len(probe))
+        self.dim = len(probe)
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         return [v.tolist() for v in self.model.embed(list(texts))]
@@ -151,8 +154,8 @@ def setup_collection(client, dim: int, reset: bool = False) -> None:
     for field in ("library", "kind", "chapter"):
         try:
             client.create_payload_index(COLLECTION_NAME, field_name=field, field_schema="keyword")
-        except Exception:  # noqa: BLE001 - already exists / local mode no-op
-            pass
+        except Exception as exc:  # noqa: BLE001 - already exists / local mode no-op
+            logger.debug("payload index for %r not (re)created: %s", field, exc)
 
 
 def load_declarations(path: Path) -> list[dict]:
