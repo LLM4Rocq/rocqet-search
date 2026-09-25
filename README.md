@@ -1,5 +1,9 @@
 # Rocqet
 
+[![CI](https://github.com/LLM4Rocq/rocqet-search/actions/workflows/ci.yml/badge.svg)](https://github.com/LLM4Rocq/rocqet-search/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/github/license/LLM4Rocq/rocqet-search)](LICENSE)
+[![Live demo](https://img.shields.io/badge/demo-roqet.vercel.app-4f46e5)](https://roqet.vercel.app)
+
 **Semantic search over Rocq/Coq mathematical libraries.**
 
 Rocqet lets you find theorems, lemmas, and definitions across large Rocq/Coq
@@ -498,7 +502,8 @@ docs/BENCHMARKS.md      Measured retrieval quality (descriptions + fine-tune)
 docs/FINETUNE.md        rocqet-embed fine-tuning pipeline
 data/, deploy/*.jsonl   Generated artifacts (gitignored)
 Dockerfile*, docker-compose.yml, railway.toml, deploy.sh
-README.md, DEPLOY.md, SEARCH.md, CONTRIBUTING.md
+README.md, DEPLOY.md, SEARCH.md, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md
+.github/                 CI (ci.yml), issue/PR templates
 ```
 
 ---

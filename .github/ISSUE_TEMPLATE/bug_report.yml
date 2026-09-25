@@ -1,0 +1,45 @@
+name: Bug report
+description: Something isn't working as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Commands run, query used, or a minimal repro.
+      placeholder: |
+        1. Run `...`
+        2. Search for "..."
+        3. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Where does this happen?
+      options:
+        - Search UI (roqet.vercel.app)
+        - API (/search, /stats, ...)
+        - Extraction / indexing pipeline (rocqet.extract, .embedder, .enrich)
+        - MCP server
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or output
+      render: shell

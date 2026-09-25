@@ -1,0 +1,32 @@
+name: Retrieval quality report
+description: A search query returned the wrong or missing lemma.
+labels: [retrieval-quality]
+body:
+  - type: input
+    id: query
+    attributes:
+      label: Query you searched
+      placeholder: "e.g. the determinant of a product is the product of determinants"
+    validations:
+      required: true
+  - type: input
+    id: library
+    attributes:
+      label: Library
+      placeholder: "e.g. mathcomp, geocoq, stdlib"
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Lemma/declaration you expected
+      placeholder: "e.g. determinant_multiplicative"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What came back instead
+      description: Paste the top few results, or a screenshot link.
+    validations:
+      required: true
