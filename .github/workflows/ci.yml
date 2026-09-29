@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,mcp]"
       - name: Lint (ruff)
         run: ruff check rocqet tests scripts
       - name: Test (pytest)
@@ -37,3 +37,5 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npx tsc --noEmit
+      - name: Test
+        run: npm test
