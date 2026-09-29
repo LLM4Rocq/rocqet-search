@@ -2,13 +2,24 @@ import type { Metadata } from "next";
 import "./globals.css";
 import VisitPing from "./VisitPing";
 
+const DESCRIPTION =
+  "Find theorems, lemmas and definitions across Rocq/Coq libraries using natural language.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://rocqet.vercel.app"),
   title: "Rocqet — Semantic search for Rocq",
-  description: "Find theorems, lemmas and definitions across Rocq/Coq libraries using natural language.",
+  description: DESCRIPTION,
+  keywords: ["Rocq", "Coq", "MathComp", "theorem search", "semantic search", "formal verification"],
   openGraph: {
     title: "Rocqet",
-    description: "Find theorems faster in Rocq/Coq",
+    description: DESCRIPTION,
     siteName: "Rocqet",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rocqet",
+    description: DESCRIPTION,
   },
 };
 
