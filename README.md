@@ -86,4 +86,6 @@ docs/       dataset, fine-tuning
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 for Rocqet's own code — see [LICENSE](LICENSE). The indexed
+dataset embeds text from upstream libraries under their own licenses
+(LGPL, CeCILL-B) — see [NOTICE.md](NOTICE.md) before redistributing it.

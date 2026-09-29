@@ -6,6 +6,10 @@ declaration (name, kind, type signature, statement, docstring, module/library,
 GitHub URL, and a natural-language description). All four libraries below ship
 with descriptions (~96-100% coverage per library).
 
+The dataset embeds verbatim text from each library's own source under that
+library's own license, not Rocqet's — see [../NOTICE.md](../NOTICE.md)
+before redistributing it.
+
 This file is a **build output**. It is *not* committed to git (it is large and
 regenerable), so you get it one of two ways:
 
