@@ -1,41 +1,17 @@
 # Search engineering
 
-How Rocqet actually finds declarations: what gets indexed, how a query is served,
-the ranking choices, and the **measured** retrieval quality — including the
-approaches that were tried and rejected.
+How Rocqet retrieves declarations, and the measured quality behind the
+choices — including approaches that were tried and rejected.
 
-> TL;DR — Rocqet retrieves with a dense semantic vector (MiniLM, 384-d, cosine over
-> Qdrant), then reorders the top candidates with a dependency-free lexical
-> Reciprocal-Rank-Fusion pass. A BM25 sparse vector is also indexed and a full
-> dense+sparse fusion mode exists, but **equal-weight fusion measured worse** on
-> natural-language queries, so dense+lexical is the shipped default.
+Retrieval is a dense semantic vector (MiniLM, 384-d, cosine, via Qdrant),
+reordered by a dependency-free lexical Reciprocal-Rank-Fusion pass. A BM25
+sparse vector is also indexed and a full dense+sparse fusion mode exists, but
+equal-weight fusion measured worse on natural-language queries, so
+dense+lexical is the default.
 
----
+## What gets embedded
 
-## 1. The pipeline at a glance
-
-```
-INDEX TIME                                   QUERY TIME
-.v files                                     "addition is commutative"
-   │ extract  (regex parser)                    │ embed query (same model)
-   ▼                                            ▼
-declaration record ──┐                       dense vector ──┐
-   │ enrich/dedupe    │ declaration_text()       sparse vec ─┤ (lexical / fusion)
-   ▼                  ▼                                       ▼
-   ├─ dense vector  (MiniLM/ONNX, 384-d) ──▶ Qdrant ◀── retrieve top-N candidates
-   └─ sparse vector (BM25 tokens, IDF)   ──▶  (named         │
-                                              dense+sparse)   ▼ rerank (RRF) → top-K
-```
-
-Two representations are stored per declaration; retrieval picks the dense one by
-default and lets a lexical pass break ties.
-
----
-
-## 2. What gets embedded
-
-A declaration is flattened to a single string by
-[`declaration_text`](rocqet/schema.py) — this is the text the **dense** model sees:
+[`declaration_text`](rocqet/schema.py) flattens a declaration to one string:
 
 ```
 {kind} {name} | {type_signature} | {docstring} | {statement} | module {module_path} | library {library}
@@ -43,203 +19,103 @@ A declaration is flattened to a single string by
 
 e.g. `Lemma addnC | commutative addn | Addition is commutative. | Lemma addnC : commutative addn. | module ssreflect.ssrnat | library mathcomp`
 
-The **sparse** (keyword) side uses a tighter field set —
-[`sparse_text`](rocqet/schema.py) = `name + type_signature + statement + docstring`
-(no module/library noise).
+The sparse (keyword) side uses a tighter field set —
+[`sparse_text`](rocqet/schema.py) = name + type_signature + statement + docstring.
 
-> **Known weakness:** many records have an *auto-generated* docstring that just
-> restates the signature (`"Lemma X: <sig>"`). It's redundant rather than
-> informative — terse, symbolic declarations give the embedder thin signal. This
-> is the single biggest lever for future quality (see §7).
+Many records only have an auto-generated docstring that restates the
+signature — thin signal for terse, symbolic declarations. Attaching a real
+natural-language description is the biggest lever here (see
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md)).
 
----
+## Indexing
 
-## 3. Indexing
+[`rocqet.embedder`](rocqet/embedder.py) writes each declaration as one Qdrant
+point with two named vectors: `dense` (cosine) and `text` (sparse, BM25-style
+term frequencies, IDF-weighted by Qdrant at query time). Point id is a
+deterministic hash of `library:file:line:name`, so re-indexing upserts in
+place instead of duplicating.
 
-[`rocqet.embedder`](rocqet/embedder.py) writes each declaration into Qdrant as one
-point with **named vectors**:
-
-| Vector | Name | How it's built | Distance |
-|--------|------|----------------|----------|
-| Dense | `dense` | embedder model over `declaration_text` | Cosine |
-| Sparse | `text` | BM25-style term frequencies over `sparse_text` | Dot, **IDF-weighted** |
-
-**Sparse construction** ([`sparse_vector`](rocqet/schema.py)):
-1. Tokenize: alphanumeric tokens, plus snake_case/CamelCase splits of identifiers
-   (`addnC → addn, c`), lowercased, length ≥ 2.
-2. Hash each token → a stable 32-bit index (`sha256(token)[:4] % 2³¹`). No
-   vocabulary to persist; index and query use the same hash.
-3. Value = term frequency. The collection is created with `Modifier.IDF`, so
-   **Qdrant applies inverse-document-frequency weighting at query time** — i.e.
-   real BM25-like scoring with zero external state.
-
-Point `id` is a deterministic hash of `library:file:line:name`
-([`stable_id`](rocqet/schema.py)), so re-indexing updates in place instead of
-duplicating.
-
-### Embedders (dense)
-
-Chosen with `--model` at index time; the API must serve with the **same** model
-(vectors are otherwise incomparable).
+Dense embedder, chosen with `--model` at index time (API must serve the same one):
 
 | Model | Backend | Dim | Notes |
 |-------|---------|-----|-------|
-| `hash` | none | 384 | Lexical bag-of-words hash. Smoke tests only. |
-| `local` | sentence-transformers (torch) | 384 | MiniLM. Best quality of the MiniLM options; heavy RAM. |
-| `fastembed` | fastembed (ONNX) | 384 | Same MiniLM weights via ONNX. **Used in production** (low RAM). |
+| `hash` | none | 384 | Lexical bag-of-words. Smoke tests only. |
+| `local` | sentence-transformers (torch) | 384 | Best quality; heavy RAM. |
+| `fastembed` | fastembed (ONNX) | 384 | Same weights via ONNX. Used in production. |
 | `openai` | OpenAI API | 1536/3072 | Highest quality; paid, network. |
 
-Production runs `fastembed` for memory reasons (see [DEPLOY.md](DEPLOY.md)).
+## Query time
 
----
+`/search` embeds the query, retrieves a candidate pool (`ROCQET_SEARCH=dense`
+by default, or `fusion` for dense+sparse RRF), reranks it down to `limit`
+([`rocqet.rerank`](rocqet/rerank.py)), and applies `lib`/`kind` filters.
 
-## 4. Query-time retrieval
+Reranking (`ROCQET_RERANK=auto`, the default) fuses the dense rank with a
+lexical rank (token overlap + targeted prefix match) via RRF. Since it only
+reorders dense's already-relevant pool, it sharpens keyword matches without
+pulling in off-topic results. Modes: `auto`/`lexical` (default), `cross`
+(cross-encoder), `off`.
 
-[`/search`](rocqet/api.py) → `query_points()`:
+## Measured quality
 
-1. Embed the query string with the active embedder.
-2. **Retrieve candidates** (`ROCQET_SEARCH`, default `dense`):
-   - **`dense`** — cosine k-NN over the `dense` vector, fetching a pool of
-     `max(limit, 40)` candidates.
-   - **`fusion`** — Qdrant Query API with two prefetches (dense + sparse) fused
-     by **Reciprocal Rank Fusion** server-side. *(Off by default — see §6.)*
-3. **Rerank** the pool ([`rocqet.rerank`](rocqet/rerank.py)) down to `limit`.
-4. Apply `lib` / `kind` filters as Qdrant payload conditions on the prefetch.
-
-### Reranking (`ROCQET_RERANK`, default `auto` = lexical)
-
-The default reorders the dense candidate pool by fusing two rankings with RRF
-(`score = 1/(k+rank_dense) + 1/(k+rank_lexical)`, `k=60`):
-
-- **Dense rank** — the order Qdrant returned.
-- **Lexical rank** — overlap between query terms and the declaration's tokens:
-  full-token match = 1.0; a *targeted* prefix match (≥5 chars, e.g.
-  `commut`↔`commutative`, `inject`↔`injective`) = 0.5.
-
-Because lexical only **reorders dense's already-semantically-relevant pool**, it
-sharpens keyword/identifier matches without dragging in off-topic results. Modes:
-`auto`/`lexical` (default), `cross` (cross-encoder), `off` (trust dense order).
-
-Display scores are the fused score normalized so the top hit = 1.0 — a *relative*
-gradient within a result list, **not** an absolute confidence.
-
----
-
-## 5. Measured quality
-
-Method: 15 natural-language queries with known-correct answers, scored
-**hit@1** (top result correct) and **hit@5** (correct answer in top 5), judged by
-declaration-name match. Small and strict — treat as a directional gauge, not a
-benchmark.
+15 hand-picked queries, hit@1 / hit@5 (directional, not a benchmark):
 
 | Configuration | hit@1 | hit@5 |
-|---------------|:-----:|:-----:|
-| Dense only (MiniLM, torch) | 26% | 66% |
+|---|:-:|:-:|
+| Dense only (torch MiniLM) | 26% | 66% |
 | **Dense + lexical RRF** (torch MiniLM) | **40%** | **80%** |
 | Dense + lexical RRF (fastembed MiniLM — prod) | 33% | 60% |
 | Equal-weight dense+sparse fusion | 26% | 53% |
-| Cross-encoder rerank (ms-marco MiniLM) | regressed | regressed |
+| Cross-encoder rerank | regressed | regressed |
 
 ### Premise-selection benchmark (automated, leakage-free)
 
-The 15-query set above is a directional gauge. The real benchmark is mined from
-proof scripts ([`rocqet.mine_eval`](rocqet/mine_eval.py)): for each proved theorem,
-the lemmas referenced in its proof body are its *premises* — declarations
-genuinely relevant to its statement. (statement → premises) is a leakage-free
-retrieval task (the proof body isn't indexed), and there are thousands of pairs
-for free. The set: **4,500 pairs**, balanced 1,500 each across stdlib/mathcomp/geocoq.
-
-Run it against the live pipeline (measures whatever ROCQET_* config is set):
-
-```bash
-ROCQET_EMBEDDER=fastembed python -m rocqet.eval --limit 600
-```
-
-Baseline (fastembed dense + lexical rerank, same-library scope):
+Mined from proof scripts ([`rocqet.mine_eval`](rocqet/mine_eval.py)): for each
+theorem, the lemmas referenced in its proof are its premises. 4,500 pairs,
+balanced across stdlib/mathcomp/geocoq. Run: `python -m rocqet.eval --limit 600`.
 
 | recall@5 | recall@10 | MRR@10 | MAP@10 | r@10 mathcomp / stdlib / geocoq |
-|:--------:|:---------:|:------:|:------:|:-------------------------------:|
+|:-:|:-:|:-:|:-:|:-:|
 | 0.129 | 0.168 | 0.162 | 0.097 | 0.223 / 0.188 / 0.091 |
 
-Premise selection is intentionally hard (many premises are general-purpose and
-textually distant from the goal), so these are a floor to improve against, not a
-quality verdict — they make the Phase-2 levers (stronger model, tuned fusion,
-late interaction) measurable instead of guessed.
+Premise selection is intentionally hard — a floor to improve against, not a
+verdict.
 
-Takeaways:
-- **Corpus coverage dominates.** Before pulling the full `rocq-prover/stdlib`
-  (stdlib went 1.4k → 13.7k declarations), list/arith queries were unanswerable.
-  No ranking trick beats having the data.
-- **Lexical reorder is a real, safe win** (+14pp over dense-only). It ships on.
-- **fastembed's ONNX MiniLM ranks a bit below torch MiniLM** (60 vs 80 hit@5) —
-  accepted as the price of fitting the memory budget.
+## Tried and rejected
 
----
+- **Cross-encoder reranking** regressed quality: generic cross-encoders are
+  trained on prose and score terse Coq declarations near-zero, scrambling
+  correct dense hits. Kept as opt-in (`ROCQET_RERANK=cross`), off by default.
+- **Equal-weight BM25 + dense fusion** scored worse (hit@5 53% vs 80%) — the
+  sparse side injects keyword-matchy but wrong candidates that outvote
+  correct dense hits. Available as `fusion` mode, not the default.
 
-## 6. What was tried and rejected (and why)
+## Known failure modes
 
-Honesty matters more here than a clean story:
+- **Variant-family bias** — near-identical lemma families (`Qplus_0_l` vs
+  `add_0_l`) cluster together and the canonical one can lose.
+- **Abstract logic principles** with weak textual signal miss (`False_rect`,
+  `NNPP`).
+- **Compound-name over-reward** from the lexical pass.
+- **Relational precision is soft** — `length_concat` over `in_app` for
+  "membership in a concatenated list".
 
-- **Cross-encoder reranking** (the textbook "biggest win") **regressed** quality:
-  generic cross-encoders are trained on natural-language web text and score terse
-  Coq declarations near-zero, scrambling correct dense hits. Kept as opt-in
-  (`ROCQET_RERANK=cross`), off by default.
-- **Equal-weight BM25 + dense fusion** scored *worse* than dense+lexical (hit@5
-  53% vs 80%). On prose queries the BM25 side injects keyword-matchy but wrong
-  candidates (`add_assoc` for "commutative", `aa4` for "two plus two") that
-  outvote correct dense hits. The sparse index is still built, and `fusion` mode
-  is available for future **weighted** tuning — but equal weight is not the default.
+Most trace back to terse names + thin/auto docstrings.
 
-The lesson: for this domain, dense should *retrieve* and lexical should only
-*reorder*; keyword signal as an equal retriever hurts.
-
----
-
-## 7. Known failure modes
-
-Observed across ~25 exploratory queries:
-
-1. **Variant-family bias.** "zero is the identity for addition" surfaces
-   `Qplus_0_l` (rationals) over the core `add_0_l`; there are many near-identical
-   `Q`/`Qc`/`Z`/`Pos` cousins and the embedder clusters them, so the *canonical*
-   lemma loses. The most common imperfection.
-2. **Abstract logic principles** with weak textual signal miss: "false implies
-   anything" doesn't surface `False_rect`; "double negation" misses `NNPP`.
-3. **Compound-name over-reward** from the lexical pass: "length of a mapped list"
-   can rank `flat_map_constant_length` over the exact `length_map`.
-4. **Relational precision is soft**: "membership in a concatenated list" returns
-   `length_concat` rather than `in_app`.
-
-Most trace back to the same root: terse names + thin/auto docstrings.
-
----
-
-## 8. Tuning knobs
+## Config
 
 | Variable | Default | Effect |
-|----------|---------|--------|
+|---|---|---|
 | `ROCQET_EMBEDDER` | `hash` | Dense model (must match index). Prod: `fastembed`. |
-| `ROCQET_SEARCH` | `dense` | `dense` retrieval, or `fusion` (dense+BM25 RRF). |
+| `ROCQET_SEARCH` | `dense` | `dense` or `fusion` (dense+BM25 RRF). |
 | `ROCQET_RERANK` | `auto` | `auto`/`lexical`, `cross`, or `off`. |
 | `ROCQET_RERANK_CANDIDATES` | `40` | Candidate pool size before rerank. |
-| `ROCQET_RRF_K` | `60` | RRF constant (higher = flatter rank weighting). |
+| `ROCQET_RRF_K` | `60` | RRF constant. |
 
----
+## Next, roughly by impact
 
-## 9. Highest-leverage next steps
-
-Ordered by expected impact, **no LLM required**:
-
-1. **Stronger embedding model + query/passage prefixes** (e.g. `bge-base`/`bge-small`)
-   — the most promising untried lever; MiniLM is small and we don't use instruction prefixes.
-2. **Weighted (dense-favoring) fusion** — recover BM25 recall for identifier
-   queries without the equal-weight regression.
-3. **Cleaner / richer indexed text** — replace restate-the-signature docstrings;
-   directly attacks failure modes 1–4.
-4. **Canonical-form boosting** — prefer core modules / shorter canonical names so
-   the "famous" lemma wins ties (variant-family bias).
-5. **Type-aware / structural search** via coq-lsp/SerAPI — the research-grade leap:
-   match by elaborated type shape (`?a + ?b = ?b + ?a`), not just text.
-
-A small fixed evaluation set is the prerequisite to tune any of these with numbers
-instead of vibes.
+1. Stronger embedding model + query/passage prefixes (e.g. bge-base/bge-small).
+2. Weighted (dense-favoring) fusion to recover BM25 recall for identifier queries.
+3. Cleaner indexed text — replace restate-the-signature docstrings.
+4. Canonical-form boosting for variant-family bias.
+5. Type-aware / structural search via coq-lsp/SerAPI.
