@@ -9,8 +9,10 @@ stays `all-MiniLM-L6-v2` (384-d) — the one already served, so serving is
 unchanged.
 
 **Current status: not shipped.** The independent (circularity-free) eval
-showed it doesn't generalize — see BENCHMARKS.md §2. Kept here as a pipeline
-to revisit with better training data.
+showed it doesn't generalize — see BENCHMARKS.md §2. Production serves the
+description-only index; this pipeline exists in the codebase
+(`rocqet.finetune`, `scripts/train_embed.py`, `scripts/eval_finetune.sh`) but
+its output isn't deployed.
 
 ## Pipeline
 
@@ -60,8 +62,4 @@ productionize a model that didn't win — this one didn't (see BENCHMARKS.md).
 
 ## Notes
 
-- MiniLM keeps serving unchanged (same 384-d, same fastembed path). A
-  stronger base (bge) or distilled teacher is a later lever.
-- v2 ideas: short synthesized query anchors (not just descriptions),
-  embedding-based hard negatives, the 4,500 premise pairs.
 - `data/finetune/` and `models/` are gitignored.
