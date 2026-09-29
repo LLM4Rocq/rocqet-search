@@ -111,11 +111,3 @@ Most trace back to terse names + thin/auto docstrings.
 | `ROCQET_RERANK` | `auto` | `auto`/`lexical`, `cross`, or `off`. |
 | `ROCQET_RERANK_CANDIDATES` | `40` | Candidate pool size before rerank. |
 | `ROCQET_RRF_K` | `60` | RRF constant. |
-
-## Next, roughly by impact
-
-1. Stronger embedding model + query/passage prefixes (e.g. bge-base/bge-small).
-2. Weighted (dense-favoring) fusion to recover BM25 recall for identifier queries.
-3. Cleaner indexed text — replace restate-the-signature docstrings.
-4. Canonical-form boosting for variant-family bias.
-5. Type-aware / structural search via coq-lsp/SerAPI.
