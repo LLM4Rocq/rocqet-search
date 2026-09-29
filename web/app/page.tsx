@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
-  Search, Loader2, ExternalLink, ChevronDown, X, Copy, Check, GitBranch, Sparkles, Sun, Moon,
+  Search, Loader2, ExternalLink, ChevronDown, X, Copy, Check, GitBranch, Sun, Moon,
 } from "lucide-react";
 import {
   searchDeclarations,
@@ -10,7 +10,6 @@ import {
   SearchResult,
   StatsResponse,
   ACTIVE_LIBRARIES,
-  COMING_SOON_LIBRARIES,
   KINDS,
   LIBRARY_LABELS,
   GEOCOQ_CHAPTERS,
@@ -22,18 +21,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://rocqet-api.onrender.
 // ---------------------------------------------------------------------------
 // Atoms
 // ---------------------------------------------------------------------------
-function ComingSoonBanner() {
-  return (
-    <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs text-[var(--muted)]">
-      <Sparkles size={13} className="text-[var(--accent,#7c93ff)]" />
-      <span>
-        <span className="text-[var(--text)] font-medium">MathComp &amp; GeoCoq </span> are live —
-        Stdlib &amp; MathComp-Analysis coming soon.
-      </span>
-    </div>
-  );
-}
-
 function ThemeToggle() {
   const [dark, setDark] = useState<boolean | null>(null);
 
@@ -307,7 +294,6 @@ export default function Home() {
                   .join(" · ")}
               </p>
             )}
-            <ComingSoonBanner />
           </div>
         )}
 
@@ -346,11 +332,6 @@ export default function Home() {
           >
             <option value="">All libraries</option>
             {ACTIVE_LIBRARIES.map(l => <option key={l} value={l}>{LIBRARY_LABELS[l]}</option>)}
-            <optgroup label="Coming soon">
-              {COMING_SOON_LIBRARIES.map(l => (
-                <option key={l} value={l} disabled>{LIBRARY_LABELS[l] ?? l}</option>
-              ))}
-            </optgroup>
           </select>
           <select
             value={filterKind}
