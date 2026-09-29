@@ -97,7 +97,15 @@ class FastEmbedEmbedder:
         self.dim = len(probe)
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return [v.tolist() for v in self.model.embed(list(texts))]
+        texts = list(texts)
+        try:
+            return [v.tolist() for v in self.model.embed(texts)]
+        except ValueError:
+            # fastembed/tokenizers occasionally mis-pads a batch into a ragged
+            # array ("inhomogeneous shape") for reasons unrelated to text
+            # content (reproducible even on short, plain-ASCII inputs) —
+            # fall back to embedding one at a time for this batch.
+            return [v.tolist() for text in texts for v in self.model.embed([text])]
 
 
 class OpenAIEmbedder:
