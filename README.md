@@ -547,12 +547,13 @@ The fetch helper knows about:
 | `unimath` | UniMath | UniMath/UniMath |
 | `hott` | HoTT | HoTT/Coq-HoTT |
 
-The **live deployment currently serves MathComp and GeoCoq** (19,448 + 2,263
-declarations, both with ~100% NL descriptions) — these are the libraries with
-high-quality descriptions, which are what make semantic search work well (see
-[docs/BENCHMARKS.md](docs/BENCHMARKS.md)). The UI shows Stdlib and
-MathComp-Analysis as "coming soon"; they roll out once their descriptions land.
-The extraction/index pipeline itself is generic across all libraries above.
+The **live deployment serves all four curated libraries** — 44,440 declarations
+total, each with an NL description (Stdlib 13,735, MathComp 19,448,
+MathComp-Analysis 8,994, GeoCoq 2,263) — which is what makes semantic search
+work well on terse, notation-heavy libraries (see
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md)). The extraction/index pipeline itself
+is generic across all libraries above, including the two not yet curated for
+production (UniMath, HoTT).
 
 A later quality pass can swap the regex extractor for `coq-lsp` or SerAPI to get
 fully elaborated declarations.
