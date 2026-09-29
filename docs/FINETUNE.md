@@ -1,18 +1,15 @@
 # Fine-tuning rocqet-embed
 
-Descriptions lift MathComp NL search from hit@10 0.292 → 0.636
-(circularity-free, see [BENCHMARKS.md](BENCHMARKS.md)). What's left is
-discrimination: the right neighborhood comes back, but the exact lemma isn't
-always #1. This is a contrastive fine-tune that pulls a query toward its
-lemma and away from same-concept/different-relation siblings. Base model
-stays `all-MiniLM-L6-v2` (384-d) — the one already served, so serving is
-unchanged.
+A contrastive fine-tune that pulls a query embedding toward its lemma and
+away from same-concept/different-relation siblings (e.g. `same_env` vs
+`same_env_sym`) — aimed at discrimination, not just getting the right
+neighborhood. Base model stays `all-MiniLM-L6-v2` (384-d), the one already
+served, so serving is unchanged.
 
-**Current status: not shipped.** The independent (circularity-free) eval
-showed it doesn't generalize — see BENCHMARKS.md §2. Production serves the
-description-only index; this pipeline exists in the codebase
-(`rocqet.finetune`, `scripts/train_embed.py`, `scripts/eval_finetune.sh`) but
-its output isn't deployed.
+**Current status: not shipped.** Production serves the description-only
+index. This pipeline exists in the codebase (`rocqet.finetune`,
+`scripts/train_embed.py`, `scripts/eval_finetune.sh`), but its output isn't
+deployed — the eval that would justify shipping it is being re-run.
 
 ## Pipeline
 
@@ -58,7 +55,8 @@ evals both on held-out queries.
 ### 4. Ship (only if it wins)
 
 Export the tuned model to ONNX, register with fastembed, re-index. Don't
-productionize a model that didn't win — this one didn't (see BENCHMARKS.md).
+productionize a model that doesn't clearly beat the description-only
+baseline on a held-out, non-circular eval.
 
 ## Notes
 

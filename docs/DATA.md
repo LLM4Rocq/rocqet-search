@@ -4,8 +4,7 @@ Rocqet searches a corpus of declarations extracted from Rocq/Coq libraries. The
 indexed artifact is `deploy/declarations.enriched.jsonl` — one JSON record per
 declaration (name, kind, type signature, statement, docstring, module/library,
 GitHub URL, and a natural-language description). All four libraries below ship
-with descriptions (~96-100% coverage per library; see
-[BENCHMARKS.md](BENCHMARKS.md) for why they matter).
+with descriptions (~96-100% coverage per library).
 
 This file is a **build output**. It is *not* committed to git (it is large and
 regenerable), so you get it one of two ways:

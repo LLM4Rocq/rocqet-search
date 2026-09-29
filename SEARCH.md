@@ -1,7 +1,7 @@
 # Search engineering
 
-How Rocqet retrieves declarations, and the measured quality behind the
-choices — including approaches that were tried and rejected.
+How Rocqet retrieves declarations, and the approaches that were tried and
+rejected along the way.
 
 Retrieval is a dense semantic vector (MiniLM, 384-d, cosine, via Qdrant),
 reordered by a dependency-free lexical Reciprocal-Rank-Fusion pass. A BM25
@@ -24,8 +24,7 @@ The sparse (keyword) side uses a tighter field set —
 
 Many records only have an auto-generated docstring that restates the
 signature — thin signal for terse, symbolic declarations. Attaching a real
-natural-language description is the biggest lever here (see
-[docs/BENCHMARKS.md](docs/BENCHMARKS.md)).
+natural-language description is the biggest lever here.
 
 ## Indexing
 
@@ -56,39 +55,19 @@ reorders dense's already-relevant pool, it sharpens keyword matches without
 pulling in off-topic results. Modes: `auto`/`lexical` (default), `cross`
 (cross-encoder), `off`.
 
-## Measured quality
-
-15 hand-picked queries, hit@1 / hit@5 (directional, not a benchmark):
-
-| Configuration | hit@1 | hit@5 |
-|---|:-:|:-:|
-| Dense only (torch MiniLM) | 26% | 66% |
-| **Dense + lexical RRF** (torch MiniLM) | **40%** | **80%** |
-| Dense + lexical RRF (fastembed MiniLM — prod) | 33% | 60% |
-| Equal-weight dense+sparse fusion | 26% | 53% |
-| Cross-encoder rerank | regressed | regressed |
-
-### Premise-selection benchmark (automated, leakage-free)
-
-Mined from proof scripts ([`rocqet.mine_eval`](rocqet/mine_eval.py)): for each
-theorem, the lemmas referenced in its proof are its premises. 4,500 pairs,
-balanced across stdlib/mathcomp/geocoq. Run: `python -m rocqet.eval --limit 600`.
-
-| recall@5 | recall@10 | MRR@10 | MAP@10 | r@10 mathcomp / stdlib / geocoq |
-|:-:|:-:|:-:|:-:|:-:|
-| 0.129 | 0.168 | 0.162 | 0.097 | 0.223 / 0.188 / 0.091 |
-
-Premise selection is intentionally hard — a floor to improve against, not a
-verdict.
-
 ## Tried and rejected
 
 - **Cross-encoder reranking** regressed quality: generic cross-encoders are
   trained on prose and score terse Coq declarations near-zero, scrambling
   correct dense hits. Kept as opt-in (`ROCQET_RERANK=cross`), off by default.
-- **Equal-weight BM25 + dense fusion** scored worse (hit@5 53% vs 80%) — the
+- **Equal-weight BM25 + dense fusion** scored worse than dense+lexical — the
   sparse side injects keyword-matchy but wrong candidates that outvote
   correct dense hits. Available as `fusion` mode, not the default.
+
+Quantitative retrieval-quality numbers are being re-measured and will land in
+a benchmarks doc once verified end-to-end. `rocqet.eval` and
+`rocqet.mine_eval` are the tools for that (leakage-free premise-selection
+mining, proof-script based).
 
 ## Known failure modes
 

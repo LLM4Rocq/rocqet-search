@@ -11,9 +11,8 @@ Rocqet finds it, even if you don't know its name.
 
 Covers stdlib, MathComp, MathComp-Analysis, and GeoCoq (44k+ declarations).
 Search quality comes mostly from attaching a natural-language description to
-each declaration before embedding — see [SEARCH.md](SEARCH.md) and
-[docs/BENCHMARKS.md](docs/BENCHMARKS.md) for what that buys and how it's
-measured.
+each declaration before embedding — see [SEARCH.md](SEARCH.md) for how that
+works.
 
 ## Setup
 
@@ -75,14 +74,13 @@ rocqet/     extract, enrich, embed, serve, MCP server (rocqet/schema.py has the 
 web/        Next.js UI
 scripts/    dataset build, indexing, eval helpers
 fixtures/   offline demo corpus
-docs/       dataset, benchmarks, fine-tuning
+docs/       dataset, fine-tuning
 ```
 
 ## More docs
 
-- [SEARCH.md](SEARCH.md) — how retrieval works, embedders, config, measured quality
+- [SEARCH.md](SEARCH.md) — how retrieval works, embedders, config
 - [docs/DATA.md](docs/DATA.md) — getting/building the dataset
-- [docs/BENCHMARKS.md](docs/BENCHMARKS.md) — retrieval-quality experiments
 - [DEPLOY.md](DEPLOY.md) — hosting (Railway/Render API + Vercel UI)
 - [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup, PR checklist
 
