@@ -20,7 +20,9 @@ def make_client(tmp_path, monkeypatch):
     fresh_client = QdrantClient(path=str(tmp_path / "qdrant"))
     monkeypatch.setattr(api, "client", lambda: fresh_client)
     monkeypatch.setattr(api, "_visits_ready", False)
+    monkeypatch.setattr(api, "_pageviews_ready", False)
     monkeypatch.setattr(api, "VISITS_COLLECTION", f"rocqet_visits_test_{uuid.uuid4().hex}")
+    monkeypatch.setattr(api, "PAGEVIEWS_COLLECTION", f"rocqet_pageviews_test_{uuid.uuid4().hex}")
     return TestClient(api.app)
 
 
@@ -49,3 +51,22 @@ def test_visit_and_site_stats_count_distinct_visitors(tmp_path, monkeypatch):
     client.post("/visit", json={"visitor_id": VISITOR_A})
     stats = client.get("/site-stats").json()
     assert stats["total_visitors"] == 2
+
+
+def test_pageview_rejects_non_uuid(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    resp = client.post("/pageview", json={"visitor_id": "not-a-uuid", "path": "/"})
+    assert resp.status_code == 400
+
+
+def test_pageview_counts_every_view_not_just_distinct_visitors(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+
+    client.post("/pageview", json={"visitor_id": VISITOR_A, "path": "/"})
+    client.post("/pageview", json={"visitor_id": VISITOR_A, "path": "/stats"})
+    client.post("/pageview", json={"visitor_id": VISITOR_B, "path": "/"})
+
+    stats = client.get("/site-stats").json()
+    assert stats["total_page_views"] == 3
+    # Pageviews don't register as heartbeats - distinct visitor tracking is /visit's job.
+    assert stats["total_visitors"] == 0

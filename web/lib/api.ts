@@ -54,6 +54,7 @@ export async function getStats(): Promise<StatsResponse> {
 export interface SiteStats {
   active_now: number;
   total_visitors: number;
+  total_page_views: number;
 }
 
 export async function pingVisit(visitorId: string): Promise<void> {
@@ -61,6 +62,15 @@ export async function pingVisit(visitorId: string): Promise<void> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ visitor_id: visitorId }),
+    cache: "no-store",
+  }).catch(() => {});
+}
+
+export async function pingPageview(visitorId: string, path: string): Promise<void> {
+  await fetch(`${API_BASE}/pageview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ visitor_id: visitorId, path }),
     cache: "no-store",
   }).catch(() => {});
 }

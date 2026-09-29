@@ -103,9 +103,15 @@ class VisitPing(BaseModel):
     visitor_id: str
 
 
+class PageView(BaseModel):
+    visitor_id: str
+    path: str = "/"
+
+
 class SiteStats(BaseModel):
     active_now: int
     total_visitors: int
+    total_page_views: int
 
 
 def embedder():
@@ -220,37 +226,56 @@ def scroll_counts(field: str) -> dict[str, int]:
 
 
 # ---------------------------------------------------------------------------
-# Site visit counter — deliberately simple: one Qdrant point per browser
-# (client-generated UUID in localStorage), a heartbeat updates its
-# last_seen_ts. total_visitors = point count; active_now = points seen in
-# the last ACTIVE_WINDOW_SECONDS. This is an approximate, self-reported
-# counter (no bot filtering, no auth on the ping) — not analytics-grade,
-# but real numbers rather than none.
+# Site stats — deliberately simple, two Qdrant collections:
+#   rocqet_visits    one point per browser (client-generated UUID), a
+#                    heartbeat updates its last_seen_ts. total_visitors =
+#                    point count (distinct browsers); active_now = points
+#                    seen in the last ACTIVE_WINDOW_SECONDS.
+#   rocqet_pageviews one point per page load/navigation (random id, not
+#                    keyed by visitor), so repeat views count. total_page_views
+#                    = point count.
+# Approximate, self-reported counters (no bot filtering, no auth on the
+# ping) — not analytics-grade, but real numbers rather than none.
 # ---------------------------------------------------------------------------
 
 VISITS_COLLECTION = os.environ.get("ROCQET_VISITS_COLLECTION", "rocqet_visits")
+PAGEVIEWS_COLLECTION = os.environ.get("ROCQET_PAGEVIEWS_COLLECTION", "rocqet_pageviews")
 ACTIVE_WINDOW_SECONDS = 90
 _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 _visits_ready = False
+_pageviews_ready = False
+
+
+def _ensure_collection(name: str, *, index_last_seen: bool) -> None:
+    from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
+
+    qdrant = client()
+    existing = {c.name for c in qdrant.get_collections().collections}
+    if name not in existing:
+        qdrant.create_collection(
+            collection_name=name,
+            vectors_config=VectorParams(size=1, distance=Distance.DOT),
+        )
+        if index_last_seen:
+            qdrant.create_payload_index(
+                name, field_name="last_seen_ts", field_schema=PayloadSchemaType.FLOAT
+            )
 
 
 def ensure_visits_collection() -> None:
     global _visits_ready
     if _visits_ready:
         return
-    from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
-
-    qdrant = client()
-    existing = {c.name for c in qdrant.get_collections().collections}
-    if VISITS_COLLECTION not in existing:
-        qdrant.create_collection(
-            collection_name=VISITS_COLLECTION,
-            vectors_config=VectorParams(size=1, distance=Distance.DOT),
-        )
-        qdrant.create_payload_index(
-            VISITS_COLLECTION, field_name="last_seen_ts", field_schema=PayloadSchemaType.FLOAT
-        )
+    _ensure_collection(VISITS_COLLECTION, index_last_seen=True)
     _visits_ready = True
+
+
+def ensure_pageviews_collection() -> None:
+    global _pageviews_ready
+    if _pageviews_ready:
+        return
+    _ensure_collection(PAGEVIEWS_COLLECTION, index_last_seen=False)
+    _pageviews_ready = True
 
 
 @app.post("/visit")
@@ -273,14 +298,42 @@ def visit(ping: VisitPing, request: Request) -> dict[str, bool]:
     return {"ok": True}
 
 
+@app.post("/pageview")
+def pageview(view: PageView, request: Request) -> dict[str, bool]:
+    enforce_rate_limit(request)
+    vid = view.visitor_id.strip()
+    if not _UUID_RE.match(vid):
+        raise HTTPException(status_code=400, detail="visitor_id must be a UUID")
+    path = view.path.strip()[:200] or "/"
+
+    import uuid
+
+    from qdrant_client.models import PointStruct
+
+    try:
+        ensure_pageviews_collection()
+        client().upsert(
+            collection_name=PAGEVIEWS_COLLECTION,
+            points=[PointStruct(
+                id=str(uuid.uuid4()),
+                vector=[0.0],
+                payload={"visitor_id": vid, "path": path, "ts": time.time()},
+            )],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Pageview tracking unavailable: {exc}") from exc
+    return {"ok": True}
+
+
 @app.get("/site-stats", response_model=SiteStats)
 def site_stats():
     from qdrant_client.models import FieldCondition, Filter, Range
 
     try:
         ensure_visits_collection()
+        ensure_pageviews_collection()
         qdrant = client()
-        total = qdrant.count(collection_name=VISITS_COLLECTION, exact=True).count
+        total_visitors = qdrant.count(collection_name=VISITS_COLLECTION, exact=True).count
         active = qdrant.count(
             collection_name=VISITS_COLLECTION,
             count_filter=Filter(
@@ -291,9 +344,10 @@ def site_stats():
             ),
             exact=True,
         ).count
+        total_page_views = qdrant.count(collection_name=PAGEVIEWS_COLLECTION, exact=True).count
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Stats unavailable: {exc}") from exc
-    return SiteStats(active_now=active, total_visitors=total)
+    return SiteStats(active_now=active, total_visitors=total_visitors, total_page_views=total_page_views)
 
 
 SEARCH_MODE = os.environ.get("ROCQET_SEARCH", "dense").strip().lower()

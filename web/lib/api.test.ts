@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { searchDeclarations, getStats, ACTIVE_LIBRARIES, LIBRARY_LABELS } from "./api";
+import {
+  searchDeclarations, getStats, getSiteStats, pingVisit, pingPageview,
+  ACTIVE_LIBRARIES, LIBRARY_LABELS,
+} from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -57,6 +60,47 @@ describe("getStats", () => {
   it("throws on a non-ok response", async () => {
     stubFetch({}, false, 503);
     await expect(getStats()).rejects.toThrow("API error: 503");
+  });
+});
+
+describe("getSiteStats", () => {
+  it("fetches /site-stats and returns the parsed body", async () => {
+    const payload = { active_now: 3, total_visitors: 42, total_page_views: 210 };
+    const fetchMock = stubFetch(payload);
+    const result = await getSiteStats();
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/site-stats");
+    expect(result).toEqual(payload);
+  });
+});
+
+describe("pingVisit / pingPageview", () => {
+  it("posts the visitor id to /visit", async () => {
+    const fetchMock = stubFetch({ ok: true });
+    await pingVisit("11111111-1111-1111-1111-111111111111");
+
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toContain("/visit");
+    expect(opts.method).toBe("POST");
+    expect(JSON.parse(opts.body)).toEqual({ visitor_id: "11111111-1111-1111-1111-111111111111" });
+  });
+
+  it("posts the visitor id and path to /pageview", async () => {
+    const fetchMock = stubFetch({ ok: true });
+    await pingPageview("11111111-1111-1111-1111-111111111111", "/stats");
+
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toContain("/pageview");
+    expect(JSON.parse(opts.body)).toEqual({
+      visitor_id: "11111111-1111-1111-1111-111111111111",
+      path: "/stats",
+    });
+  });
+
+  it("never throws, even when fetch fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+    await expect(pingVisit("x")).resolves.toBeUndefined();
+    await expect(pingPageview("x", "/")).resolves.toBeUndefined();
   });
 });
 

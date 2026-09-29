@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Radio, Users, Loader2 } from "lucide-react";
+import { ArrowLeft, Radio, Users, Eye, Loader2 } from "lucide-react";
 import { getSiteStats, getStats, SiteStats, StatsResponse, LIBRARY_LABELS } from "@/lib/api";
 
 const POLL_MS = 5_000;
@@ -74,12 +74,18 @@ export default function StatsPage() {
         <p className="text-sm text-red-500 mb-6">{error}</p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
         <StatCard
           icon={<Radio size={14} className="text-emerald-500" />}
           label="Active right now"
           value={site ? site.active_now.toLocaleString() : "…"}
           hint="Heartbeat in the last 90 seconds"
+        />
+        <StatCard
+          icon={<Eye size={14} />}
+          label="Total page views"
+          value={site ? site.total_page_views.toLocaleString() : "…"}
+          hint="Every page load/navigation, repeats included"
         />
         <StatCard
           icon={<Users size={14} />}
