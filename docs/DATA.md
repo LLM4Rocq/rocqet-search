@@ -49,12 +49,16 @@ Once `deploy/declarations.enriched.jsonl` exists, index it into Qdrant:
 
 ## Current corpus
 
-| Library | Source |
-|---|---|
-| `stdlib` | rocq-prover/stdlib |
-| `mathcomp` | math-comp/math-comp |
-| `mathcomp-analysis` | math-comp/analysis |
-| `geocoq` | GeoCoq/GeoCoq (curated) |
+| Library | Source | Descriptions from |
+|---|---|---|
+| `stdlib` | rocq-prover/stdlib | Rocqet (`rocqet.describe`) |
+| `mathcomp` | math-comp/math-comp | [LLM4Docq](https://github.com/LLM4Rocq/LLM4Docq-MathComp) — see [../NOTICE.md](../NOTICE.md) |
+| `mathcomp-analysis` | math-comp/analysis | Rocqet (`rocqet.describe`) |
+| `geocoq` | GeoCoq/GeoCoq (curated) | Rocqet (`rocqet.describe`) |
+
+`build_dataset.sh` extracts and enriches all four libraries but does not
+attach mathcomp's descriptions — that's a separate join step,
+`scripts/attach_mathcomp_nl.py`, against the external LLM4Docq dataset.
 
 Refresh by re-running the build (Option 2) and re-indexing; point ids are
 deterministic, so re-indexing upserts in place with no downtime.
