@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import Link from "next/link";
 import {
-  Search, Loader2, ExternalLink, ChevronDown, X, Copy, Check, GitBranch, Sun, Moon,
+  Search, Loader2, ExternalLink, ChevronDown, X, Copy, Check, GitBranch, Activity, Sun, Moon,
 } from "lucide-react";
 import {
   searchDeclarations,
@@ -262,6 +263,12 @@ export default function Home() {
           Rocqet
         </button>
         <div className="flex items-center gap-2">
+          <Link
+            href="/stats"
+            className="flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-3 py-1.5 transition-colors"
+          >
+            <Activity size={14} /> Stats
+          </Link>
           <a
             href="https://github.com/LLM4Rocq/rocqet-search"
             target="_blank"

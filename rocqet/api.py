@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from collections import deque
 from typing import Any
@@ -30,13 +31,14 @@ app = FastAPI(
     description="Semantic search over Rocq/Coq mathematical libraries",
     version="0.1.0",
 )
-# Public, read-only search API: default to permissive CORS so any client (the
+# Public, mostly-read-only API: default to permissive CORS so any client (the
 # UI, MCP servers, notebooks) can call it. Restrict to specific origins in
-# production by setting CORS_ORIGINS (comma-separated). Only GET is exposed.
+# production by setting CORS_ORIGINS (comma-separated). POST is only used by
+# /visit (the visitor heartbeat) — everything else is GET.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -95,6 +97,15 @@ class StatsResponse(BaseModel):
     total_points: int
     libraries: dict[str, int]
     kinds: dict[str, int]
+
+
+class VisitPing(BaseModel):
+    visitor_id: str
+
+
+class SiteStats(BaseModel):
+    active_now: int
+    total_visitors: int
 
 
 def embedder():
@@ -206,6 +217,83 @@ def scroll_counts(field: str) -> dict[str, int]:
             counts[value] = counts.get(value, 0) + 1
         if offset is None:
             return dict(sorted(counts.items()))
+
+
+# ---------------------------------------------------------------------------
+# Site visit counter — deliberately simple: one Qdrant point per browser
+# (client-generated UUID in localStorage), a heartbeat updates its
+# last_seen_ts. total_visitors = point count; active_now = points seen in
+# the last ACTIVE_WINDOW_SECONDS. This is an approximate, self-reported
+# counter (no bot filtering, no auth on the ping) — not analytics-grade,
+# but real numbers rather than none.
+# ---------------------------------------------------------------------------
+
+VISITS_COLLECTION = os.environ.get("ROCQET_VISITS_COLLECTION", "rocqet_visits")
+ACTIVE_WINDOW_SECONDS = 90
+_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+_visits_ready = False
+
+
+def ensure_visits_collection() -> None:
+    global _visits_ready
+    if _visits_ready:
+        return
+    from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
+
+    qdrant = client()
+    existing = {c.name for c in qdrant.get_collections().collections}
+    if VISITS_COLLECTION not in existing:
+        qdrant.create_collection(
+            collection_name=VISITS_COLLECTION,
+            vectors_config=VectorParams(size=1, distance=Distance.DOT),
+        )
+        qdrant.create_payload_index(
+            VISITS_COLLECTION, field_name="last_seen_ts", field_schema=PayloadSchemaType.FLOAT
+        )
+    _visits_ready = True
+
+
+@app.post("/visit")
+def visit(ping: VisitPing, request: Request) -> dict[str, bool]:
+    enforce_rate_limit(request)
+    vid = ping.visitor_id.strip()
+    if not _UUID_RE.match(vid):
+        raise HTTPException(status_code=400, detail="visitor_id must be a UUID")
+
+    from qdrant_client.models import PointStruct
+
+    try:
+        ensure_visits_collection()
+        client().upsert(
+            collection_name=VISITS_COLLECTION,
+            points=[PointStruct(id=vid, vector=[0.0], payload={"last_seen_ts": time.time()})],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Visit tracking unavailable: {exc}") from exc
+    return {"ok": True}
+
+
+@app.get("/site-stats", response_model=SiteStats)
+def site_stats():
+    from qdrant_client.models import FieldCondition, Filter, Range
+
+    try:
+        ensure_visits_collection()
+        qdrant = client()
+        total = qdrant.count(collection_name=VISITS_COLLECTION, exact=True).count
+        active = qdrant.count(
+            collection_name=VISITS_COLLECTION,
+            count_filter=Filter(
+                must=[FieldCondition(
+                    key="last_seen_ts",
+                    range=Range(gte=time.time() - ACTIVE_WINDOW_SECONDS),
+                )]
+            ),
+            exact=True,
+        ).count
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Stats unavailable: {exc}") from exc
+    return SiteStats(active_now=active, total_visitors=total)
 
 
 SEARCH_MODE = os.environ.get("ROCQET_SEARCH", "dense").strip().lower()

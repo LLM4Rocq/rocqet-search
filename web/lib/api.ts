@@ -51,6 +51,26 @@ export async function getStats(): Promise<StatsResponse> {
   return res.json();
 }
 
+export interface SiteStats {
+  active_now: number;
+  total_visitors: number;
+}
+
+export async function pingVisit(visitorId: string): Promise<void> {
+  await fetch(`${API_BASE}/visit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ visitor_id: visitorId }),
+    cache: "no-store",
+  }).catch(() => {});
+}
+
+export async function getSiteStats(): Promise<SiteStats> {
+  const res = await fetch(`${API_BASE}/site-stats`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
 export const LIBRARIES = ["stdlib", "mathcomp", "geocoq","mathcomp-analysis", "unimath", "hott"] as const;
 export type Library = typeof LIBRARIES[number];
 

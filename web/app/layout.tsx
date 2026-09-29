@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import VisitPing from "./VisitPing";
 
 export const metadata: Metadata = {
   title: "Rocqet — Semantic search for Rocq",
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <VisitPing />
+        {children}
+      </body>
     </html>
   );
 }

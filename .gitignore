@@ -7,6 +7,9 @@ __pycache__/
 node_modules/
 .next/
 next-env.d.ts
+# Auto-written by `next dev` (Next.js agent-rules feature) on every local run
+web/AGENTS.md
+web/CLAUDE.md
 *.tsbuildinfo
 out/
 data/*.jsonl
