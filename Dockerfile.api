@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 # QDRANT_URL / QDRANT_API_KEY), so the container's memory stays small and stable.
 COPY pyproject.toml README.md ./
 COPY rocqet ./rocqet
-RUN pip install --no-cache-dir ".[serve]"
+RUN pip install --no-cache-dir ".[serve,flt]"
 
 ENV ROCQET_EMBEDDER=fastembed \
     FASTEMBED_CACHE_PATH=/app/.cache/fastembed
@@ -19,6 +19,16 @@ ENV ROCQET_EMBEDDER=fastembed \
 # fast and the running container needs no network for embeddings.
 RUN python -c "from fastembed import TextEmbedding; \
     list(TextEmbedding('sentence-transformers/all-MiniLM-L6-v2').embed(['warmup']))"
+
+# FLT search data (29,511 theorems + title embeddings, ~213MB). Unlike the
+# main index (lives in managed Qdrant), the FLT index is in-memory, so its
+# data has to be baked into the image. Distributed via a GitHub Release
+# rather than committed — see README.md "FLT search page".
+RUN mkdir -p flt/data \
+    && curl -fL -o flt/data/theorems.jsonl \
+         https://github.com/LLM4Rocq/rocqet-search/releases/download/flt-data-v1/theorems.jsonl \
+    && curl -fL -o flt/data/emb_title.npy \
+         https://github.com/LLM4Rocq/rocqet-search/releases/download/flt-data-v1/emb_title.npy
 
 EXPOSE 8000
 # Railway (and most PaaS) inject $PORT; fall back to 8000 locally.

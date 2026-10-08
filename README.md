@@ -77,6 +77,59 @@ fixtures/   offline demo corpus
 docs/       dataset, fine-tuning
 ```
 
+## FLT search page
+
+A dedicated page for the 29,511 theorems of the machine-checked proof of
+Fermat's Last Theorem
+([anthropics/fermats-last-theorem](https://github.com/anthropics/fermats-last-theorem)).
+Two modes:
+
+- **What is it?** — hybrid dense + BM25 search (reciprocal rank fusion) over
+  English titles and Lean statements.
+- **Where is it used?** — takes the best matches and walks the `cited_by`
+  citation graph outward up to 3 hops, grouped by proof stage.
+
+### Building the index (once, from the repo root)
+
+```bash
+pip install -e ".[serve,flt]"   # fastembed (ONNX) + rank-bm25 + numpy
+
+# fetch just the html/ docs (~380 MB), not the Lean sources
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/anthropics/fermats-last-theorem /tmp/flt
+git -C /tmp/flt sparse-checkout set --no-cone html
+
+python3 flt/extract.py --html-dir /tmp/flt/html --out flt/data/theorems.jsonl
+python3 flt/build_index.py     # embeds 29,511 titles; a few minutes on CPU
+```
+
+This writes `flt/data/theorems.jsonl` and `emb_title.npy`. The Lean statement
+is authoritative; the English summary is generated — both are kept as separate
+fields. The dense view is the English title (+ curated aliases); BM25 indexes
+name + title + summary + statement + aliases for exact-term matching.
+
+In production, `Dockerfile.api` downloads both files (~213MB) from a GitHub
+Release at build time rather than rebuilding them — the index itself is
+in-memory (not in Qdrant like the main search), so the data has to be baked
+into the image.
+
+### Running
+
+Start the API as usual (`uvicorn rocqet.api:app --port 8000` from the repo
+root) and open `/flt`. The FLT index loads lazily on the first `/flt`
+request; if the data is missing the endpoints return 503 with an
+explanation. Override the location with `FLT_DATA_DIR`.
+
+Layout:
+
+```
+flt/extract.py      html/ data -> theorems.jsonl (name, module, title,
+                    summary, statement, stage, cites, cited_by)
+flt/build_index.py  theorems.jsonl -> emb_title.npy
+rocqet/flt.py       in-memory index: hybrid RRF search + cited_by expansion
+web/app/flt/        the Next.js page (two modes, stage-grouped results)
+```
+
 ## More docs
 
 - [SEARCH.md](SEARCH.md) — how retrieval works, embedders, config

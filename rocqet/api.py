@@ -226,6 +226,79 @@ def scroll_counts(field: str) -> dict[str, int]:
 
 
 # ---------------------------------------------------------------------------
+# FLT search — Fermat's Last Theorem page.
+# Served from local artifacts (flt/data/); the index loads lazily on first
+# use so the main API boots fast when the FLT data is absent.
+# ---------------------------------------------------------------------------
+
+_flt_index = None
+_flt_error: str | None = None
+
+
+def flt_index():
+    global _flt_index, _flt_error
+    if _flt_index is None and _flt_error is None:
+        try:
+            from rocqet import flt as flt_mod
+
+            _flt_index = flt_mod.get_index()
+        except FileNotFoundError as exc:
+            _flt_error = f"FLT index not built: {exc}"
+        except Exception as exc:  # noqa: BLE001
+            _flt_error = f"FLT index failed to load: {exc}"
+            logger.warning("FLT index failed to load: %s", exc)
+    return _flt_index
+
+
+class FLTSearchResponse(BaseModel):
+    query: str
+    mode: str
+    seeds: list[dict[str, Any]]
+    results: list[dict[str, Any]]
+    groups: dict[str, list[str]]
+    total: int
+    elapsed_ms: float
+
+
+@app.get("/flt/search", response_model=FLTSearchResponse)
+def flt_search(
+    request: Request,
+    q: str = Query(..., description="Natural language query over FLT theorems"),
+    mode: str = Query("what", pattern="^(what|used)$", description="'what' or 'used'"),
+    limit: int = Query(10, ge=1, le=50),
+):
+    enforce_rate_limit(request)
+    if not q.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    idx = flt_index()
+    if idx is None:
+        raise HTTPException(status_code=503, detail=_flt_error or "FLT index unavailable")
+    try:
+        return idx.search(q, mode=mode, limit=limit)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"FLT search failed: {exc}") from exc
+
+
+@app.get("/flt/theorem")
+def flt_theorem(name: str = Query(..., description="Full theorem name, e.g. FreyPackage.frey_isModular")):
+    idx = flt_index()
+    if idx is None:
+        raise HTTPException(status_code=503, detail=_flt_error or "FLT index unavailable")
+    rec = idx.get_theorem(name)
+    if rec is None:
+        raise HTTPException(status_code=404, detail=f"Unknown theorem: {name}")
+    return rec
+
+
+@app.get("/flt/stats")
+def flt_stats():
+    idx = flt_index()
+    if idx is None:
+        raise HTTPException(status_code=503, detail=_flt_error or "FLT index unavailable")
+    return idx.stats()
+
+
+# ---------------------------------------------------------------------------
 # Site stats — deliberately simple, two Qdrant collections:
 #   rocqet_visits    one point per browser (client-generated UUID), a
 #                    heartbeat updates its last_seen_ts. total_visitors =
